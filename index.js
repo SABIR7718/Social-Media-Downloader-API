@@ -103,6 +103,117 @@ async function StartLovingFace(videoUrl, cookie, useragent) {
     });
 }
 
+async function StartLovingTok(tiktokUrl) {
+    return new Promise(async (resolve, reject) => {
+        try {
+            if (!tiktokUrl || !tiktokUrl.includes("tiktok.com")) {
+                return reject("Invalid TikTok URL");
+            }
+
+            const response = await axios.post("https://www.tikwm.com/api/", qs.stringify({
+                url: tiktokUrl,
+                web: 1
+            }), {
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+                }
+            });
+
+            const data = response.data.data;
+            if (!data) return reject("Failed to fetch TikTok data.");
+            const base = "https://www.tikwm.com";
+
+            resolve({
+                status: "success",
+                platform: "TikTok",
+                title: data.title || "TikTok Video",
+                video_url: base + (data.hdplay || data.play),
+                music: base + data.music,
+                author: {
+                    username: data.author.unique_id,
+                    nickname: data.author.nickname,
+                    avatar: base + data.author.avatar
+                },
+                statistics: {
+                    views: data.play_count,
+                    likes: data.digg_count,
+                    comments: data.comment_count,
+                    shares: data.share_count
+                },
+                dev: "SABIR7718"
+            });
+        } catch (err) {
+            reject(`TikTok Error: ${err.message}`);
+        }
+    });
+}
+
+async function StartLovingTube(videoUrl) {
+    return new Promise(async (resolve, reject) => {
+        try {
+            if (videoUrl.includes('/shorts/')) {
+                videoUrl = videoUrl.replace('/shorts/', '/watch?v=');
+            }
+
+            try {
+                const vercelApi = `https://new-api-five-eta.vercel.app/api/downloader/ytv?apikey=SAYAN_ZORO&url=${encodeURIComponent(videoUrl)}`;
+                const vercelRes = await axios.get(vercelApi);
+
+                if (vercelRes.data && vercelRes.data.status === true) {
+                    return resolve({
+                        status: "success",
+                        platform: "YouTube",
+                        title: vercelRes.data.data.title || "YouTube Video",
+                        video_url: vercelRes.data.data.url,
+                        dev: "SABIR7718"
+                    });
+                }
+            } catch (err) {}
+
+            try {
+                const cobaltRes = await axios.post("https://api.cobalt.tools/api/json", {
+                    url: videoUrl,
+                    vQuality: "720"
+                }, {
+                    headers: { 
+                        'Accept': 'application/json', 
+                        'Content-Type': 'application/json',
+                        'Origin': 'https://cobalt.tools',
+                        'Referer': 'https://cobalt.tools/',
+                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+                    }
+                });
+
+                if (cobaltRes.data && cobaltRes.data.url) {
+                    return resolve({
+                        status: "success",
+                        platform: "YouTube (Cobalt)",
+                        title: "YouTube Video",
+                        video_url: cobaltRes.data.url,
+                        dev: "SABIR7718"
+                    });
+                }
+            } catch (cobaltErr) {}
+            
+            try {
+                const fallbackRes = await axios.get(`https://api.siputzx.my.id/api/d/ytmp4?url=${encodeURIComponent(videoUrl)}`);
+                if (fallbackRes.data && fallbackRes.data.data && fallbackRes.data.data.dl) {
+                    return resolve({
+                        status: "success",
+                        platform: "YouTube (Siputzx)",
+                        title: fallbackRes.data.data.title || "YouTube Video",
+                        video_url: fallbackRes.data.data.dl,
+                        dev: "SABIR7718"
+                    });
+                }
+            } catch (fErr) {}
+            
+        } catch (err) {
+            reject(err);
+        }
+    });
+}
 
 async function check_IS_S7_LoVe_SY(url) {
     let split_url = url.split("/");
@@ -232,7 +343,6 @@ async function instagramRequest(shortcode, retries, delay) {
                 'Content-Type': 'application/x-www-form-urlencoded',
                 'Origin': 'https://www.instagram.com',
                 'Referer': 'https://www.instagram.com/',
-                // 'Cookie': config.InstaCookie
             },
             data: dataBody
         };
@@ -353,63 +463,67 @@ SABIR7718.get('/sylove', async (req, res) => {
     }
 
     try {
+        // --- INSTAGRAM ---
         if (targetUrl.includes('instagram.com') || targetUrl.includes('instagr.am')) {
             log('info', 'API', `INSTAGRAM_REQ-${targetUrl}`);
-
             const SY_LoVe = await SABIR_LOvS_SY(targetUrl);
-            //  const SY_LoVe = await getReel(targetUrl);
+            return res.json({
+                status: "success",
+                platform: "Instagram",
+                results: SY_LoVe.results_number,
+                video_url: SY_LoVe.url_list,
+                post_info: SY_LoVe.post_info,
+                dev: "SABIR7718"
+            });
+        }
 
-            if (SY_LoVe && SY_LoVe.url_list && SY_LoVe.url_list.length > 0) {
-
-                return res.json({
-                    status: "success",
-                    platform: "Instagram",
-                    results: SY_LoVe.results_number,
-                    video_url: SY_LoVe.url_list,
-                    post_info: SY_LoVe.post_info,
-                    dev: "SABIR7718"
-                });
-            } else {
-                throw new Error("Empty response from Instagram engine");
-            }
-        } else if (targetUrl.includes('facebook.com') || targetUrl.includes('fb.watch') || targetUrl.includes('fb.com')) {
+        // --- FACEBOOK ---
+        else if (targetUrl.includes('facebook.com') || targetUrl.includes('fb.watch') || targetUrl.includes('fb.com')) {
             log('info', 'API', `FACEBOOK_REQ-${targetUrl}`);
-
             const S7_LoVe_SY = await Do_You_Love_S7(targetUrl);
+            return res.json({
+                status: "success",
+                platform: "Facebook",
+                video_url: S7_LoVe_SY.hd || S7_LoVe_SY.sd,
+                title: S7_LoVe_SY.title,
+                dev: "SABIR7718"
+            });
+        }
 
-            if (S7_LoVe_SY && (S7_LoVe_SY.hd || S7_LoVe_SY.sd)) {
-                return res.json({
-                    status: "success",
-                    platform: "Facebook",
-                    video_url: S7_LoVe_SY.hd || S7_LoVe_SY.sd,
-                    title: S7_LoVe_SY.title || "Facebook Video",
-                    dev: "SABIR7718"
-                });
+        // --- TIKTOK ---
+        else if (targetUrl.includes('tiktok.com')) {
+            log('info', 'API', `TIKTOK_REQ-${targetUrl}`);
+            const Tok_Data = await StartLovingTok(targetUrl);
+            return res.json(Tok_Data);
+        } 
+        
+        // --- YOUTUBE ---
+        else if (targetUrl.includes('youtube.com') || targetUrl.includes('youtu.be')) {
+            log('info', 'API', `YOUTUBE_REQ-${targetUrl}`);
+
+            try {
+                const Tube_Data = await StartLovingTube(targetUrl);
+                return res.json(Tube_Data);
+            } catch (err) {
+                log('error', 'API', `YouTube Primary failed, trying fallback...`);
+                throw new Error(err.message);
             }
         }
 
         res.status(404).json({
             status: "fail",
-            message: "Media not found"
+            message: "Platform not supported"
         });
 
     } catch (err) {
         log('error', 'API', `${err.message}`);
-
-        if (err.message.includes('401')) {
-            return res.status(401).json({
-                status: "error",
-                message: "Instagram Blocked the Request (401). IP limit reached or Login Required.",
-                tip: "Try using a VPN"
-            });
-        }
-
         res.status(500).json({
             status: "error",
             message: err.message
         });
     }
 });
+
 
 SABIR7718.listen(PORT, () => {
     log('success', 'SERVER', `START ON PORT ${PORT}`);
