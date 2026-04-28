@@ -35,6 +35,12 @@ const qs = require("qs");
 const fs = require('fs');
 const path = require('path');
 
+const audioDir = path.join(__dirname, 'public/audio');
+
+if (!fs.existsSync(audioDir)) {
+    fs.mkdirSync(audioDir, { recursive: true });
+}
+
 async function StartLovingInsta(url_media, LOVE = {
     retries: 5,
     delay: 1000
