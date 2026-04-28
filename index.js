@@ -32,6 +32,8 @@ const {
 const config = require('./config');
 const axios = require("axios");
 const qs = require("qs");
+const fs = require('fs');
+const path = require('path');
 
 async function StartLovingInsta(url_media, LOVE = {
     retries: 5,
@@ -176,8 +178,8 @@ async function StartLovingTube(videoUrl) {
                     url: videoUrl,
                     vQuality: "720"
                 }, {
-                    headers: { 
-                        'Accept': 'application/json', 
+                    headers: {
+                        'Accept': 'application/json',
                         'Content-Type': 'application/json',
                         'Origin': 'https://cobalt.tools',
                         'Referer': 'https://cobalt.tools/',
@@ -195,7 +197,7 @@ async function StartLovingTube(videoUrl) {
                     });
                 }
             } catch (cobaltErr) {}
-            
+
             try {
                 const fallbackRes = await axios.get(`https://api.siputzx.my.id/api/d/ytmp4?url=${encodeURIComponent(videoUrl)}`);
                 if (fallbackRes.data && fallbackRes.data.data && fallbackRes.data.data.dl) {
@@ -208,7 +210,7 @@ async function StartLovingTube(videoUrl) {
                     });
                 }
             } catch (fErr) {}
-            
+
         } catch (err) {
             reject(err);
         }
@@ -363,6 +365,51 @@ async function instagramRequest(shortcode, retries, delay) {
     }
 }
 
+async function mp4ToMp3(videoUrl) {
+    return new Promise(async (resolve, reject) => {
+        try {
+            const ffmpeg = require('fluent-ffmpeg');
+            const ffmpegPath = require('ffmpeg-static');
+            const fs = require('fs');
+            const path = require('path');
+            const fileName = `audio_${Date.now()}.mp3`;
+            const outputPath = path.join(__dirname, 'public/audio', fileName);
+
+            const response = await axios({
+                url: videoUrl,
+                method: 'GET',
+                responseType: 'stream'
+            });
+
+            ffmpeg(response.data)
+                .audioCodec('libmp3lame')
+                .audioBitrate(128)
+                .format('mp3')
+                .save(outputPath)
+                .on('end', () => {
+
+                    setTimeout(() => {
+                        fs.unlink(outputPath, (err) => {
+                            if (err) {
+                                log('error', 'AUDIO_CLEANER', `Delete failed: ${err.message}`);
+                            } else {
+                                log('info', 'AUDIO_CLEANER', `Deleted file: ${fileName}`);
+                            }
+                        });
+                    }, 2 * 60 * 1000);
+
+                    resolve(fileName);
+                })
+                .on('error', (err) => {
+                    reject(err);
+                });
+
+        } catch (err) {
+            reject(err);
+        }
+    });
+}
+
 function SYxS7(S7_LoVe_SY) {
     try {
         let url_list = [],
@@ -495,8 +542,8 @@ SABIR7718.get('/sylove', async (req, res) => {
             log('info', 'API', `TIKTOK_REQ-${targetUrl}`);
             const Tok_Data = await StartLovingTok(targetUrl);
             return res.json(Tok_Data);
-        } 
-        
+        }
+
         // --- YOUTUBE ---
         else if (targetUrl.includes('youtube.com') || targetUrl.includes('youtu.be')) {
             log('info', 'API', `YOUTUBE_REQ-${targetUrl}`);
@@ -524,6 +571,75 @@ SABIR7718.get('/sylove', async (req, res) => {
     }
 });
 
+SABIR7718.get('/audiosyhate', async (req, res) => {
+    const targetUrl = req.query.url;
+
+    if (!targetUrl) {
+        return res.status(400).json({
+            status: "error",
+            message: "URL is required"
+        });
+    }
+
+    try {
+        let videoUrl = null;
+
+        // --- INSTAGRAM ---
+        if (targetUrl.includes('instagram.com') || targetUrl.includes('instagr.am')) {
+            log('info', 'API', `INSTAGRAM_AUDIO-${targetUrl}`);
+            const SY_LoVe = await SABIR_LOvS_SY(targetUrl);
+            videoUrl = SY_LoVe.url_list[0];
+        }
+
+        // --- FACEBOOK ---
+        else if (targetUrl.includes('facebook.com') || targetUrl.includes('fb.watch') || targetUrl.includes('fb.com')) {
+            log('info', 'API', `FACEBOOK_AUDIO-${targetUrl}`);
+            const data = await Do_You_Love_S7(targetUrl);
+            videoUrl = data.hd || data.sd;
+        }
+
+        // --- TIKTOK ---
+        else if (targetUrl.includes('tiktok.com')) {
+            log('info', 'API', `TIKTOK_AUDIO-${targetUrl}`);
+            const data = await StartLovingTok(targetUrl);
+            videoUrl = data.video_url;
+        }
+
+        // --- YOUTUBE ---
+        else if (targetUrl.includes('youtube.com') || targetUrl.includes('youtu.be')) {
+            log('info', 'API', `YOUTUBE_AUDIO-${targetUrl}`);
+            const data = await StartLovingTube(targetUrl);
+            videoUrl = data.video_url;
+        }
+
+        if (!videoUrl) {
+            return res.status(400).json({
+                status: "error",
+                message: "Unsupported or invalid URL"
+            });
+        }
+
+        const fileName = await mp4ToMp3(videoUrl);
+
+        const audioUrl = `${req.protocol}://${req.get('host')}/audio/${fileName}`;
+
+        return res.json({
+            status: "success",
+            platform: "Audio",
+            audio_url: audioUrl,
+            dev: "SABIR7718"
+        });
+
+    } catch (err) {
+        log('error', 'API', err.message);
+        res.status(500).json({
+            status: "error",
+            message: err.message
+        });
+    }
+});
+
+SABIR7718.use('/audio', express.static(require('path').join(__dirname, 'public/audio')));
 
 SABIR7718.listen(PORT, () => {
     log('success', 'SERVER', `START ON PORT ${PORT}`);
