@@ -38,24 +38,45 @@ const path = require('path');
 const audioDir = path.join(__dirname, 'public/audio');
 
 if (!fs.existsSync(audioDir)) {
-    fs.mkdirSync(audioDir, { recursive: true });
+    fs.mkdirSync(audioDir, {
+        recursive: true
+    });
 }
 
 async function StartLovingInsta(url_media, LOVE = {
     retries: 5,
     delay: 1000
 }) {
-    return new Promise(async (resolve, reject) => {
+    try {
         try {
-            url_media = await check_IS_S7_LoVe_SY(url_media);
-            const SHORTCODE = getShortcode(url_media);
-            const INSTAGRAM_REQUEST = await instagramRequest(SHORTCODE, LOVE.retries, LOVE.delay);
-            const OUTPUT_DATA = SYxS7(INSTAGRAM_REQUEST);
-            resolve(OUTPUT_DATA);
-        } catch (err) {
-            reject(err);
+            const apiUrl = "https://newapi-rypa.onrender.com/api/instagram?url=" + encodeURIComponent(url_media);
+            const {
+                data
+            } = await axios.get(apiUrl, {
+                timeout: 20000
+            });
+
+            if (data && data.status && data.result?.media?.length) {
+                return {
+                    url_list: data.result.media.map(v => v.url)
+                };
+            }
+
+            throw new Error("API failed");
+        } catch (apiErr) {
+            log('error', 'INSTA_API_FAIL', apiErr.message);
         }
-    });
+
+        url_media = await check_IS_S7_LoVe_SY(url_media);
+        const SHORTCODE = getShortcode(url_media);
+        const INSTAGRAM_REQUEST = await instagramRequest(SHORTCODE, LOVE.retries, LOVE.delay);
+        const OUTPUT_DATA = SYxS7(INSTAGRAM_REQUEST);
+
+        return OUTPUT_DATA;
+
+    } catch (err) {
+        throw err;
+    }
 }
 
 async function StartLovingFace(videoUrl, cookie, useragent) {
@@ -165,15 +186,15 @@ async function StartLovingTube(videoUrl) {
             }
 
             try {
-                const vercelApi = `https://new-api-five-eta.vercel.app/api/downloader/ytv?apikey=SAYAN_ZORO&url=${encodeURIComponent(videoUrl)}`;
-                const vercelRes = await axios.get(vercelApi);
+                const apiUrl = `https://newapi-rypa.onrender.com/api/ytmp4?url=${encodeURIComponent(videoUrl)}`;
+                const res = await axios.get(apiUrl);
 
-                if (vercelRes.data && vercelRes.data.status === true) {
+                if (res.data && res.data.status === true) {
                     return resolve({
                         status: "success",
                         platform: "YouTube",
-                        title: vercelRes.data.data.title || "YouTube Video",
-                        video_url: vercelRes.data.data.url,
+                        title: "YouTube Video",
+                        video_url: res.data.url,
                         dev: "SABIR7718"
                     });
                 }
@@ -611,11 +632,34 @@ SABIR7718.get('/audiosyhate', async (req, res) => {
             videoUrl = data.video_url;
         }
 
-        // --- YOUTUBE ---
+        // --- YOUTUBE (API + FALLBACK) ---
         else if (targetUrl.includes('youtube.com') || targetUrl.includes('youtu.be')) {
             log('info', 'API', `YOUTUBE_AUDIO-${targetUrl}`);
-            const data = await StartLovingTube(targetUrl);
-            videoUrl = data.video_url;
+
+            try {
+                const apiUrl = "https://newapi-536w.onrender.com/api/song?url=" + encodeURIComponent(targetUrl);
+                const {
+                    data
+                } = await axios.get(apiUrl, {
+                    timeout: 30000
+                });
+
+                if (data && data.status && data.result?.audio) {
+                    return res.json({
+                        status: "success",
+                        platform: "YouTube",
+                        audio_url: data.result.audio,
+                        dev: "SABIR7718"
+                    });
+                }
+
+                throw new Error("API failed");
+            } catch (e) {
+                log('error', 'YOUTUBE_API_FAIL', e.message);
+
+                const data = await StartLovingTube(targetUrl);
+                videoUrl = data.video_url;
+            }
         }
 
         if (!videoUrl) {
