@@ -583,6 +583,41 @@ SABIR7718.get('/sylove', async (req, res) => {
                 throw new Error(err.message);
             }
         }
+        
+        // --- PINTEREST ---
+        else if (targetUrl.includes('pinterest.com') || targetUrl.includes('pin.it')) {
+            log('info', 'API', `PINTEREST_REQ-${targetUrl}`);
+
+            const api =
+                `https://rabbitapi.nett.to/api/pint?url=${encodeURIComponent(targetUrl)}`;
+
+            const response = await axios.get(api, {
+                timeout: 30000,
+                headers: {
+                    "User-Agent": "Mozilla/5.0"
+                }
+            });
+
+            const medias = response.data?.url?.data?.medias || [];
+
+            const video = medias.find(
+                m => m.extension === "mp4"
+            )?.url;
+
+            const image = medias.find(
+                m => m.extension === "jpg" ||
+                     m.extension === "jpeg" ||
+                     m.extension === "png"
+            )?.url;
+
+            return res.json({
+                status: "success",
+                platform: "Pinterest",
+                type: video ? "video" : "image",
+                media_url: video || image,
+                dev: "SABIR7718"
+            });
+        }
 
         res.status(404).json({
             status: "fail",
