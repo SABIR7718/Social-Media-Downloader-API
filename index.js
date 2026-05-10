@@ -392,6 +392,88 @@ async function instagramRequest(shortcode, retries, delay) {
     }
 }
 
+async function StartLovingXNXX(videoUrl) {
+
+    return new Promise(async (resolve, reject) => {
+
+        try {
+
+            if (
+                !videoUrl.includes("xnxx.com") &&
+                !videoUrl.includes("xvideos.com")
+            ) {
+                return reject("Invalid XNXX/XVideos URL");
+            }
+
+            const {
+                data
+            } = await axios.get(videoUrl, {
+                timeout: 30000,
+                headers: {
+                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36",
+                    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
+                    "Accept-Language": "en-US,en;q=0.9",
+                    "Referer": "https://www.google.com/"
+                }
+            });
+
+            const title =
+                data.match(/<title>(.*?)<\/title>/i)?.[1]
+                ?.replace("- XNXX.COM", "")
+                ?.trim() || "XNXX Video";
+
+            const thumb =
+                data.match(/setThumbUrl\('(.*?)'\)/)?.[1]
+                ?.replace(/\\u002F/g, "/")
+                ?.replace(/\\/g, "");
+
+            const low =
+                data.match(/setVideoUrlLow\('(.*?)'\)/)?.[1]
+                ?.replace(/\\u002F/g, "/")
+                ?.replace(/\\/g, "");
+
+            const high =
+                data.match(/setVideoUrlHigh\('(.*?)'\)/)?.[1]
+                ?.replace(/\\u002F/g, "/")
+                ?.replace(/\\/g, "");
+
+            const hls =
+                data.match(/setVideoHLS\('(.*?)'\)/)?.[1]
+                ?.replace(/\\u002F/g, "/")
+                ?.replace(/\\/g, "");
+
+            const duration =
+                data.match(/"duration":"(.*?)"/)?.[1] || null;
+
+            if (!high && !low && !hls) {
+                return reject("Video not found");
+            }
+
+            resolve({
+                status: "success",
+                platform: "XNXX",
+                title,
+                thumbnail: thumb,
+                duration,
+                video_url: high || low || hls,
+                quality: {
+                    low,
+                    high,
+                    hls
+                },
+                dev: "SABIR7718"
+            });
+
+        } catch (err) {
+
+            reject(`XNXX Error: ${err.message}`);
+
+        }
+
+    });
+
+}
+
 async function mp4ToMp3(videoUrl) {
     return new Promise(async (resolve, reject) => {
         try {
@@ -435,6 +517,120 @@ async function mp4ToMp3(videoUrl) {
             reject(err);
         }
     });
+}
+
+async function StartLovingXHamster(videoUrl, req) {
+
+    return new Promise(async (resolve, reject) => {
+
+        try {
+
+            if (!videoUrl.includes("xhamster.com")) {
+                return reject("Invalid XHamster URL");
+            }
+
+            const response = await axios.get(videoUrl, {
+                timeout: 30000,
+                headers: {
+                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36",
+                    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
+                    "Accept-Language": "en-US,en;q=0.9",
+                    "Referer": "https://www.google.com/"
+                }
+            });
+
+            const data = response.data;
+
+            const title =
+                data.match(/<title>(.*?)<\/title>/i)?.[1]
+                ?.replace(/\s-\s*xHamster.*/i, "")
+                ?.trim() || "XHamster Video";
+
+            const thumbnail =
+                data.match(/"thumbnailUrl":"(.*?)"/)?.[1]
+                ?.replace(/\\\//g, "/");
+
+            const mp4Matches = [
+                ...data.matchAll(/https:[^"]+\.mp4(?!\.m3u8)[^"]*/g)
+            ];
+
+            const hlsMatches = [
+                ...data.matchAll(/https:[^"]+\.m3u8[^"]*/g)
+            ];
+
+            const mp4Regex =
+                /https?:\/\/[^"'\\\s]+\.mp4[^"'\\\s]*/g;
+
+            const rawMp4s = data.match(mp4Regex) || [];
+
+            const cleanMp4s = rawMp4s
+                .map(v =>
+                    v
+                    .replace(/\\u002F/g, "/")
+                    .replace(/\\/g, "")
+                )
+                .filter(v =>
+                    !v.includes(".m3u8") &&
+                    !v.includes("/thumb-") &&
+                    !v.includes(".t.av1.mp4") &&
+                    !v.includes("sprite") &&
+                    !v.includes("thumb") &&
+                    !v.includes("preview")
+                );
+
+            const mp4 =
+                cleanMp4s.find(v =>
+                    v.includes("1080")
+                ) ||
+                cleanMp4s.find(v =>
+                    v.includes("720")
+                ) ||
+                cleanMp4s.find(v =>
+                    v.includes("480")
+                ) ||
+                cleanMp4s[0] ||
+                null;
+
+            const hls =
+                hlsMatches?.[0]?.[0]
+                ?.replace(/\\u002F/g, "/")
+                ?.replace(/\\/g, "");
+
+            const duration =
+                data.match(/"duration":"(.*?)"/)?.[1] || null;
+
+            if (!mp4 && !hls) {
+                return reject("No video stream found");
+            }
+
+            resolve({
+                status: "success",
+                platform: "XHamster",
+                title,
+                thumbnail,
+                duration,
+                video_url: `${req.protocol}://${req.get('host')}/proxyxhamster?url=${encodeURIComponent(mp4 || hls)}`,
+                quality: {
+                    `${req.protocol}://${req.get('host')}/proxyxhamster?url=${encodeURIComponent(mp4 || hls)}`,
+                    `${req.protocol}://${req.get('host')}/proxyxhamster?url=${encodeURIComponent(hls)}`
+                },
+                dev: "SABIR7718"
+            });
+
+        } catch (err) {
+
+            console.log(err);
+
+            reject(
+                err?.response?.data ||
+                err?.message ||
+                "Unknown XHamster Error"
+            );
+
+        }
+
+    });
+
 }
 
 function SYxS7(S7_LoVe_SY) {
@@ -583,7 +779,7 @@ SABIR7718.get('/sylove', async (req, res) => {
                 throw new Error(err.message);
             }
         }
-        
+
         // --- PINTEREST ---
         else if (targetUrl.includes('pinterest.com') || targetUrl.includes('pin.it')) {
             log('info', 'API', `PINTEREST_REQ-${targetUrl}`);
@@ -606,8 +802,8 @@ SABIR7718.get('/sylove', async (req, res) => {
 
             const image = medias.find(
                 m => m.extension === "jpg" ||
-                     m.extension === "jpeg" ||
-                     m.extension === "png"
+                m.extension === "jpeg" ||
+                m.extension === "png"
             )?.url;
 
             return res.json({
@@ -617,6 +813,31 @@ SABIR7718.get('/sylove', async (req, res) => {
                 media_url: video || image,
                 dev: "SABIR7718"
             });
+        }
+
+        // --- XNXX / XVIDEOS ---
+        else if (
+            targetUrl.includes('xnxx.com') ||
+            targetUrl.includes('xvideos.com')
+        ) {
+
+            log('info', 'API', `XNXX_REQ-${targetUrl}`);
+
+            const data = await StartLovingXNXX(targetUrl);
+
+            return res.json(data);
+
+        }
+
+        // --- XHAMSTER ---
+        else if (targetUrl.includes('xhamster.com')) {
+
+            log('info', 'API', `XHAMSTER_REQ-${targetUrl}`);
+
+            const data = await StartLovingXHamster(targetUrl, req);
+
+            return res.json(data);
+
         }
 
         res.status(404).json({
@@ -722,6 +943,51 @@ SABIR7718.get('/audiosyhate', async (req, res) => {
             message: err.message
         });
     }
+});
+
+SABIR7718.get('/proxyxhamster', async (req, res) => {
+
+    try {
+
+        const target = req.query.url;
+
+        if (!target) {
+            return res.status(400).send("Missing url");
+        }
+
+        const response = await axios({
+            method: "GET",
+            url: target,
+            responseType: "stream",
+            headers: {
+                "User-Agent": "Mozilla/5.0",
+                "Referer": "https://xhamster.com/"
+            }
+        });
+
+        res.setHeader(
+            "Content-Type",
+            response.headers["content-type"] || "video/mp4"
+        );
+
+        res.setHeader(
+            "Access-Control-Allow-Origin",
+            "*"
+        );
+
+        response.data.pipe(res);
+
+    } catch (err) {
+
+        console.log(err?.message);
+
+        res.status(500).json({
+            status: "error",
+            message: err?.message || "Proxy failed"
+        });
+
+    }
+
 });
 
 SABIR7718.use('/audio', express.static(require('path').join(__dirname, 'public/audio')));
