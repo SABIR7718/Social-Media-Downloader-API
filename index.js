@@ -606,14 +606,10 @@ async function StartLovingXHamster(videoUrl, req) {
             resolve({
                 status: "success",
                 platform: "XHamster",
+                video_url: `${req.protocol}://${req.get('host')}/proxyxhamster?url=${encodeURIComponent(mp4 || hls)}`,
                 title,
                 thumbnail,
-                duration,
-                video_url: `${req.protocol}://${req.get('host')}/proxyxhamster?url=${encodeURIComponent(mp4 || hls)}`,
-                quality: {
-                    `${req.protocol}://${req.get('host')}/proxyxhamster?url=${encodeURIComponent(mp4 || hls)}`,
-                    `${req.protocol}://${req.get('host')}/proxyxhamster?url=${encodeURIComponent(hls)}`
-                },
+                duration,           
                 dev: "SABIR7718"
             });
 
