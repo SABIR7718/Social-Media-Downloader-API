@@ -400,7 +400,7 @@ async function StartLovingXNXX(videoUrl) {
 
             if (
                 !videoUrl.includes("xnxx.com") &&
-                !videoUrl.includes("xvideos.com")
+                !videoUrl.includes("xnxx.health")
             ) {
                 return reject("Invalid XNXX/XVideos URL");
             }
@@ -814,7 +814,7 @@ SABIR7718.get('/sylove', async (req, res) => {
         // --- XNXX / XVIDEOS ---
         else if (
             targetUrl.includes('xnxx.com') ||
-            targetUrl.includes('xvideos.com')
+            targetUrl.includes('xnxx.health')
         ) {
 
             log('info', 'API', `XNXX_REQ-${targetUrl}`);
