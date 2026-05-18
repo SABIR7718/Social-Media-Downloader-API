@@ -875,7 +875,7 @@ SABIR7718.get('/sylove', async (req, res) => {
                 platform: "Pinterest",
                 type: video ? "video" : "image",
                 media_url: video || image,
-                dev: "SABIR7718"
+                dev: "NOO"
             });
         }
 
