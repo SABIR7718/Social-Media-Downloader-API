@@ -106,7 +106,7 @@ async function StartLovingFace(videoUrl, cookie, useragent) {
     const parseString = (string) => JSON.parse(`{"text": "${string}"}`).text;
 
     try {
-        const fb2Url = `https://rabbitapi.nett.to/api/fb2?url=${encodeURIComponent(videoUrl)}`;
+        const fb2Url = `https://rabbitapi.nett.to/api/fb3?url=${encodeURIComponent(videoUrl)}`;
         const {
             data
         } = await axios.get(fb2Url, {
