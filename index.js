@@ -849,7 +849,7 @@ SABIR7718.get('/sylove', async (req, res) => {
             log('info', 'API', `PINTEREST_REQ-${targetUrl}`);
 
             const api =
-                `https://rabbitapi.nett.to/api/pint?url=${encodeURIComponent(targetUrl)}`;
+                `https://rabbitapi.nett.to/api/pinterest?url=${encodeURIComponent(targetUrl)}`;
 
             const response = await axios.get(api, {
                 timeout: 30000,
