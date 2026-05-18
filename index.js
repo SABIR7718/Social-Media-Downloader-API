@@ -106,26 +106,34 @@ async function StartLovingFace(videoUrl, cookie, useragent) {
     const parseString = (string) => JSON.parse(`{"text": "${string}"}`).text;
 
     try {
-        const fb2Url = `https://rabbitapi.nett.to/api/fb3?url=${encodeURIComponent(videoUrl)}`;
+
+        const fbUrl = `https://rabbitapi.nett.to/api/fb3?url=${encodeURIComponent(videoUrl)}`;
+
         const {
             data
-        } = await axios.get(fb2Url, {
+        } = await axios.get(fbUrl, {
             timeout: 15000
         });
 
-        if (data?.status && data.result?.media) {
+        if (data?.status && (data.sd || data.hd)) {
+
             return {
-                url: data.result.url || videoUrl,
+                url: videoUrl,
                 duration_ms: 0,
-                sd: data.result.media.sd || "",
-                hd: data.result.media.hd || "",
-                title: data.result.title || "",
-                thumbnail: data.result.thumbnail || ""
+                sd: data.sd || "",
+                hd: data.hd || "",
+                title: data.title || "Facebook Video",
+                thumbnail: data.thumbnail || ""
             };
+
         }
-        log('info', 'FB_API_FB2', 'FB2 returned no media, trying FB3...');
+
+        throw new Error("Rabbit API failed");
+
     } catch (err) {
-        log('error', 'FB_API_FB2_FAIL', err.message);
+
+        log('error', 'FB_API_FAIL', err.message);
+
     }
 
     try {
