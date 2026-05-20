@@ -919,143 +919,143 @@ SABIR7718.get('/sylove', async (req, res) => {
 });
 
 SABIR7718.get('/audiosyhate', async (req, res) => {
-    const targetUrl = req.query.url;
+            const targetUrl = req.query.url;
 
-    if (!targetUrl) {
-        return res.status(400).json({
-            status: "error",
-            message: "URL is required"
-        });
-    }
-
-    try {
-        let videoUrl = null;
-
-        // --- INSTAGRAM ---
-        if (targetUrl.includes('instagram.com') || targetUrl.includes('instagr.am')) {
-            log('info', 'API', `INSTAGRAM_AUDIO-${targetUrl}`);
-            const SY_LoVe = await SABIR_LOvS_SY(targetUrl);
-            videoUrl = SY_LoVe.url_list[0];
-        }
-
-        // --- FACEBOOK ---
-        else if (targetUrl.includes('facebook.com') || targetUrl.includes('fb.watch') || targetUrl.includes('fb.com')) {
-            log('info', 'API', `FACEBOOK_AUDIO-${targetUrl}`);
-            const data = await Do_You_Love_S7(targetUrl);
-            videoUrl = data.hd || data.sd;
-        }
-
-        // --- TIKTOK ---
-        else if (targetUrl.includes('tiktok.com')) {
-            log('info', 'API', `TIKTOK_AUDIO-${targetUrl}`);
-            const data = await StartLovingTok(targetUrl);
-            videoUrl = data.video_url;
-        }
-
-        // --- YOUTUBE (API + FALLBACK) ---
-        else if (targetUrl.includes('youtube.com') || targetUrl.includes('youtu.be')) {
-            log('info', 'API', `YOUTUBE_AUDIO-${targetUrl}`);
+            if (!targetUrl) {
+                return res.status(400).json({
+                    status: "error",
+                    message: "URL is required"
+                });
+            }
 
             try {
-                const apiUrl = "https://newapi-536w.onrender.com/api/song?url=" + encodeURIComponent(targetUrl);
-                const {
-                    data
-                } = await axios.get(apiUrl, {
-                    timeout: 30000
-                });
+                let videoUrl = null;
 
-                if (data && data.status && data.result?.audio) {
-                    return res.json({
-                        status: "success",
-                        platform: "YouTube",
-                        audio_url: data.result.audio,
-                        dev: "SABIR7718"
-                    });
+                // --- INSTAGRAM ---
+                if (targetUrl.includes('instagram.com') || targetUrl.includes('instagr.am')) {
+                    log('info', 'API', `INSTAGRAM_AUDIO-${targetUrl}`);
+                    const SY_LoVe = await SABIR_LOvS_SY(targetUrl);
+                    videoUrl = SY_LoVe.url_list[0];
                 }
 
-                throw new Error("API failed");
-            } catch (e) {
-                log('error', 'YOUTUBE_API_FAIL', e.message);
+                // --- FACEBOOK ---
+                else if (targetUrl.includes('facebook.com') || targetUrl.includes('fb.watch') || targetUrl.includes('fb.com')) {
+                    log('info', 'API', `FACEBOOK_AUDIO-${targetUrl}`);
+                    const data = await Do_You_Love_S7(targetUrl);
+                    videoUrl = data.hd || data.sd;
+                }
 
-                const data = await StartLovingTube(targetUrl);
-                videoUrl = data.video_url;
-            }
-        }
+                // --- TIKTOK ---
+                else if (targetUrl.includes('tiktok.com')) {
+                    log('info', 'API', `TIKTOK_AUDIO-${targetUrl}`);
+                    const data = await StartLovingTok(targetUrl);
+                    videoUrl = data.video_url;
+                }
 
-        if (!videoUrl) {
-            return res.status(400).json({
-                status: "error",
-                message: "Unsupported or invalid URL"
+                // --- YOUTUBE (API + FALLBACK) ---
+                else if (targetUrl.includes('youtube.com') || targetUrl.includes('youtu.be')) {
+                    log('info', 'API', `YOUTUBE_AUDIO-${targetUrl}`);
+
+                    try {
+                        const apiUrl = "https://newapi-536w.onrender.com/api/song?url=" + encodeURIComponent(targetUrl);
+
+                        const {
+                            data
+                        } = await axios.get(apiUrl, {
+                            timeout: 30000
+                        });
+
+                        if (data?.success === true && data?.result?.audio) {
+                            return res.json({
+                                status: "success",
+                                platform: "YouTube",
+                                audio_url: data.result.audio,
+                                dev: "SABIR7718"
+                            });
+                        }
+
+                        throw new Error("API returned success=false or no audio");
+
+                    } catch (e) {
+                        log('error', 'YOUTUBE_API_FAIL', e.message);
+                        const data = await StartLovingTube(targetUrl);
+                        videoUrl = data.video_url;
+                    }
+
+                    if (!videoUrl) {
+                        return res.status(400).json({
+                            status: "error",
+                            message: "Unsupported or invalid URL"
+                        });
+                    }
+
+                    const fileName = await mp4ToMp3(videoUrl);
+
+                    const audioUrl = `${req.protocol}://${req.get('host')}/audio/${fileName}`;
+
+                    return res.json({
+                        status: "success",
+                        platform: "Audio",
+                        audio_url: audioUrl,
+                        dev: "SABIR7718"
+                    });
+
+                } catch (err) {
+                    log('error', 'API', err.message);
+                    res.status(500).json({
+                        status: "error",
+                        message: err.message
+                    });
+                }
             });
-        }
 
-        const fileName = await mp4ToMp3(videoUrl);
+        SABIR7718.get('/proxyxhamster', async (req, res) => {
 
-        const audioUrl = `${req.protocol}://${req.get('host')}/audio/${fileName}`;
+            try {
 
-        return res.json({
-            status: "success",
-            platform: "Audio",
-            audio_url: audioUrl,
-            dev: "SABIR7718"
-        });
+                const target = req.query.url;
 
-    } catch (err) {
-        log('error', 'API', err.message);
-        res.status(500).json({
-            status: "error",
-            message: err.message
-        });
-    }
-});
+                if (!target) {
+                    return res.status(400).send("Missing url");
+                }
 
-SABIR7718.get('/proxyxhamster', async (req, res) => {
+                const response = await axios({
+                    method: "GET",
+                    url: target,
+                    responseType: "stream",
+                    headers: {
+                        "User-Agent": "Mozilla/5.0",
+                        "Referer": "https://xhamster.com/"
+                    }
+                });
 
-    try {
+                res.setHeader(
+                    "Content-Type",
+                    response.headers["content-type"] || "video/mp4"
+                );
 
-        const target = req.query.url;
+                res.setHeader(
+                    "Access-Control-Allow-Origin",
+                    "*"
+                );
 
-        if (!target) {
-            return res.status(400).send("Missing url");
-        }
+                response.data.pipe(res);
 
-        const response = await axios({
-            method: "GET",
-            url: target,
-            responseType: "stream",
-            headers: {
-                "User-Agent": "Mozilla/5.0",
-                "Referer": "https://xhamster.com/"
+            } catch (err) {
+
+                console.log(err?.message);
+
+                res.status(500).json({
+                    status: "error",
+                    message: err?.message || "Proxy failed"
+                });
+
             }
+
         });
 
-        res.setHeader(
-            "Content-Type",
-            response.headers["content-type"] || "video/mp4"
-        );
+        SABIR7718.use('/audio', express.static(require('path').join(__dirname, 'public/audio')));
 
-        res.setHeader(
-            "Access-Control-Allow-Origin",
-            "*"
-        );
-
-        response.data.pipe(res);
-
-    } catch (err) {
-
-        console.log(err?.message);
-
-        res.status(500).json({
-            status: "error",
-            message: err?.message || "Proxy failed"
+        SABIR7718.listen(PORT, () => {
+            log('success', 'SERVER', `START ON PORT ${PORT}`);
         });
-
-    }
-
-});
-
-SABIR7718.use('/audio', express.static(require('path').join(__dirname, 'public/audio')));
-
-SABIR7718.listen(PORT, () => {
-    log('success', 'SERVER', `START ON PORT ${PORT}`);
-});
