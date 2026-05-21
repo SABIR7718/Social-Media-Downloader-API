@@ -59,19 +59,14 @@ async function StartLovingInsta(url_media, LOVE = {
                 timeout: 20000
             });
 
-            if (
-                data &&
-                data.status === true &&
-                data.url &&
-                data.url.status === true &&
-                data.url.result
-            ) {
+            if (data && data.status === true && data.url) {
 
                 return {
-                    url_list: [data.url.result]
+                    url_list: [data.url]
                 };
 
             }
+
 
             throw new Error("Rabbit API failed");
 
@@ -102,6 +97,7 @@ async function StartLovingInsta(url_media, LOVE = {
     }
 }
 
+
 async function StartLovingFace(videoUrl, cookie, useragent) {
     const parseString = (string) => JSON.parse(`{"text": "${string}"}`).text;
 
@@ -123,8 +119,9 @@ async function StartLovingFace(videoUrl, cookie, useragent) {
                 sd: data.sd || "",
                 hd: data.hd || "",
                 title: data.title || "Facebook Video",
-                thumbnail: data.thumbnail || ""
+                thumbnail: data.thumbnail || "https://placeholder.com/fb-video.jpg"
             };
+
 
         }
 
@@ -848,36 +845,45 @@ SABIR7718.get('/sylove', async (req, res) => {
         else if (targetUrl.includes('pinterest.com') || targetUrl.includes('pin.it')) {
             log('info', 'API', `PINTEREST_REQ-${targetUrl}`);
 
-            const api =
-                `https://rabbitapi.nett.to/api/pinterest?url=${encodeURIComponent(targetUrl)}`;
+            try {
+                const api = `https://rabbitapi.nett.to/api/pinterest?url=${encodeURIComponent(targetUrl)}`;
 
-            const response = await axios.get(api, {
-                timeout: 30000,
-                headers: {
-                    "User-Agent": "Mozilla/5.0"
+                const response = await axios.get(api, {
+                    timeout: 30000,
+                    headers: {
+                        "User-Agent": "Mozilla/5.0"
+                    }
+                });
+
+                const resData = response.data;
+
+                if (resData && resData.status === true && resData.url) {
+
+                    const isVideo = resData.url.includes('.mp4');
+
+                    return res.json({
+                        status: "success",
+                        platform: "Pinterest",
+                        type: isVideo ? "video" : "image",
+                        media_url: resData.url,
+                        title: resData.title || "",
+                        thumbnail: resData.thumbnail || "",
+                        dev: "NOO"
+                    });
                 }
-            });
 
-            const medias = response.data?.url?.data?.medias || [];
+                throw new Error("Pinterest API returned invalid response structure");
 
-            const video = medias.find(
-                m => m.extension === "mp4"
-            )?.url;
-
-            const image = medias.find(
-                m => m.extension === "jpg" ||
-                m.extension === "jpeg" ||
-                m.extension === "png"
-            )?.url;
-
-            return res.json({
-                status: "success",
-                platform: "Pinterest",
-                type: video ? "video" : "image",
-                media_url: video || image,
-                dev: "NOO"
-            });
+            } catch (err) {
+                log('error', 'PINTEREST_API_FAIL', err.message);
+                return res.json({
+                    status: "failed",
+                    platform: "Pinterest",
+                    message: err.message
+                });
+            }
         }
+
 
         // --- XNXX / XVIDEOS ---
         else if (
