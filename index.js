@@ -963,18 +963,22 @@ SABIR7718.get('/audiosyhate', async (req, res) => {
             log('info', 'API', `YOUTUBE_AUDIO-${targetUrl}`);
 
             try {
-                const apiUrl = "https://newapi-536w.onrender.com/api/song?url=" + encodeURIComponent(targetUrl);
+                const apiUrl = "https://rabbitapi.nett.to/api/song?url=" + encodeURIComponent(targetUrl);
 
                 const {
                     data
                 } = await axios.get(apiUrl, {
-                    timeout: 30000
+                    timeout: 30000,
+                    headers: {
+                        "User-Agent": "Mozilla/5.0"
+                    }
                 });
 
                 if (data?.success === true && data?.result?.audio) {
                     return res.json({
                         status: "success",
                         platform: "YouTube",
+                        title: data.result.title,
                         audio_url: data.result.audio,
                         dev: "SABIR7718"
                     });
@@ -984,8 +988,15 @@ SABIR7718.get('/audiosyhate', async (req, res) => {
 
             } catch (e) {
                 log('error', 'YOUTUBE_API_FAIL', e.message);
+
                 const data = await StartLovingTube(targetUrl);
-                videoUrl = data.video_url;
+
+                return res.json({
+                    status: "success",
+                    platform: "YouTube",
+                    audio_url: data.video_url || data.audio_url,
+                    dev: "SABIR7718"
+                });
             }
         }
 
