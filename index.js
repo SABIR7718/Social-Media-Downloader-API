@@ -968,18 +968,22 @@ SABIR7718.get('/audiosyhate', async (req, res) => {
                 const {
                     data
                 } = await axios.get(apiUrl, {
-                    timeout: 30000,
-                    headers: {
-                        "User-Agent": "Mozilla/5.0"
-                    }
+                    timeout: 30000
                 });
 
-                if (data?.success === true && data?.result?.audio) {
+                if (data?.success && data?.result?.audio) {
+
+                    const finalRes = await axios.get(data.result.audio, {
+                        maxRedirects: 10
+                    });
+
+                    const finalUrl = finalRes.request.res.responseUrl;
+
                     return res.json({
                         status: "success",
                         platform: "YouTube",
                         title: data.result.title,
-                        audio_url: data.result.audio,
+                        audio_url: finalUrl,
                         dev: "SABIR7718"
                     });
                 }
