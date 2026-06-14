@@ -694,6 +694,30 @@ async function StartLovingXHamster(videoUrl, req) {
 
 }
 
+const {
+    execFile
+} = require('child_process');
+
+function getRedirectUrl(url) {
+    return new Promise((resolve) => {
+        execFile(
+            'curl',
+            ['-sI', url],
+            (err, stdout) => {
+                if (err) return resolve(url);
+
+                const match = stdout.match(
+                    /^location:\s*(.+)$/im
+                );
+
+                resolve(
+                    match?.[1]?.trim() || url
+                );
+            }
+        );
+    });
+}
+
 function SYxS7(S7_LoVe_SY) {
     try {
         let url_list = [],
@@ -973,11 +997,7 @@ SABIR7718.get('/audiosyhate', async (req, res) => {
 
                 if (data?.success && data?.result?.audio) {
 
-                    const finalRes = await axios.get(data.result.audio, {
-                        maxRedirects: 10
-                    });
-
-                    const finalUrl = finalRes.request.res.responseUrl;
+                    const finalUrl = await getRedirectUrl(data.result.audio);
 
                     return res.json({
                         status: "success",
