@@ -256,10 +256,10 @@ async function StartLovingTube(videoUrl) {
 
                 if (res.data && res.data.status === true) {
                     const downloadData = res.data.download?.video;
-                    
-                    const videoDownloadUrl = downloadData?.["720p"]?.url || 
-                                             downloadData?.["1080p"]?.url || 
-                                             downloadData?.["360p"]?.url;
+
+                    const videoDownloadUrl = downloadData?.["720p"]?.url ||
+                        downloadData?.["1080p"]?.url ||
+                        downloadData?.["360p"]?.url;
 
                     if (videoDownloadUrl) {
                         return resolve({
@@ -271,8 +271,7 @@ async function StartLovingTube(videoUrl) {
                         });
                     }
                 }
-            } catch (err) {
-            }
+            } catch (err) {}
 
             try {
                 const cobaltRes = await axios.post("https://api.cobalt.tools/api/json", {
@@ -421,6 +420,45 @@ function isLove(S7_LoVe_SY) {
         return S7_LoVe_SY["__typename"] == "XDTGraphSidecar";
     } catch (err) {}
 }
+
+async function downloadTemporaryVideo(videoUrl) {
+    return new Promise(async (resolve, reject) => {
+        try {
+            const fs = require('fs');
+            const path = require('path');
+            const fileName = `yt_video_${Date.now()}.mp4`;
+            const outputPath = path.join(__dirname, 'public/audio', fileName);
+
+            const response = await axios({
+                url: videoUrl,
+                method: 'GET',
+                responseType: 'stream'
+            });
+
+            const writer = fs.createWriteStream(outputPath);
+            response.data.pipe(writer);
+
+            writer.on('finish', () => {
+                setTimeout(() => {
+                    fs.unlink(outputPath, (err) => {
+                        if (err) {
+                            log('error', 'VIDEO_CLEANER', `Delete failed: ${err.message}`);
+                        } else {
+                            log('info', 'VIDEO_CLEANER', `Deleted temp video file: ${fileName}`);
+                        }
+                    });
+                }, 5 * 60 * 1000);
+
+                resolve(fileName);
+            });
+
+            writer.on('error', (err) => reject(err));
+        } catch (err) {
+            reject(err);
+        }
+    });
+}
+
 
 async function instagramRequest(shortcode, retries, delay) {
     var _a;
@@ -870,12 +908,31 @@ SABIR7718.get('/sylove', async (req, res) => {
 
             try {
                 const Tube_Data = await StartLovingTube(targetUrl);
-                return res.json(Tube_Data);
+
+                if (Tube_Data && Tube_Data.video_url) {
+                    log('info', 'API', `Downloading YouTube video to local storage...`);
+
+                    const localFileName = await downloadTemporaryVideo(Tube_Data.video_url);
+
+                    const temporaryVideoUrl = `${req.protocol}://${req.get('host')}/audio/${localFileName}`;
+
+                    return res.json({
+                        status: "success",
+                        platform: "YouTube (Temporary Local Link)",
+                        title: Tube_Data.title || "YouTube Video",
+                        video_url: temporaryVideoUrl,
+                        expires_in: "5 minutes",
+                        dev: "SABIR7718"
+                    });
+                } else {
+                    throw new Error("No video URL found from providers.");
+                }
             } catch (err) {
-                log('error', 'API', `YouTube Primary failed, trying fallback...`);
+                log('error', 'API', `YouTube Primary & local download failed: ${err.message}`);
                 throw new Error(err.message);
             }
         }
+
 
         // --- PINTEREST ---
         else if (targetUrl.includes('pinterest.com') || targetUrl.includes('pin.it')) {
