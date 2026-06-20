@@ -432,7 +432,14 @@ async function downloadTemporaryVideo(videoUrl) {
             const response = await axios({
                 url: videoUrl,
                 method: 'GET',
-                responseType: 'stream'
+                responseType: 'stream',
+                headers: {
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+                    'Accept': '*/*',
+                    'Accept-Language': 'en-US,en;q=0.9',
+                    'Referer': 'https://www.youtube.com/'
+                },
+                timeout: 60000
             });
 
             const writer = fs.createWriteStream(outputPath);
@@ -447,7 +454,7 @@ async function downloadTemporaryVideo(videoUrl) {
                             log('info', 'VIDEO_CLEANER', `Deleted temp video file: ${fileName}`);
                         }
                     });
-                }, 5 * 60 * 1000);
+                }, 5 * 60 * 1000); // 5 minutes delete lock
 
                 resolve(fileName);
             });
@@ -458,6 +465,7 @@ async function downloadTemporaryVideo(videoUrl) {
         }
     });
 }
+
 
 
 async function instagramRequest(shortcode, retries, delay) {
