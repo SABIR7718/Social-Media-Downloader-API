@@ -255,15 +255,24 @@ async function StartLovingTube(videoUrl) {
                 const res = await axios.get(apiUrl);
 
                 if (res.data && res.data.status === true) {
-                    return resolve({
-                        status: "success",
-                        platform: "YouTube",
-                        title: "YouTube Video",
-                        video_url: res.data.url,
-                        dev: "SABIR7718"
-                    });
+                    const downloadData = res.data.download?.video;
+                    
+                    const videoDownloadUrl = downloadData?.["720p"]?.url || 
+                                             downloadData?.["1080p"]?.url || 
+                                             downloadData?.["360p"]?.url;
+
+                    if (videoDownloadUrl) {
+                        return resolve({
+                            status: "success",
+                            platform: "YouTube",
+                            title: res.data.metadata?.title || "YouTube Video",
+                            video_url: videoDownloadUrl,
+                            dev: "SABIR7718"
+                        });
+                    }
                 }
-            } catch (err) {}
+            } catch (err) {
+            }
 
             try {
                 const cobaltRes = await axios.post("https://api.cobalt.tools/api/json", {
@@ -303,11 +312,14 @@ async function StartLovingTube(videoUrl) {
                 }
             } catch (fErr) {}
 
+            reject(new Error("Failed to fetch download link from all providers."));
+
         } catch (err) {
             reject(err);
         }
     });
 }
+
 
 async function check_IS_S7_LoVe_SY(url) {
     let split_url = url.split("/");
