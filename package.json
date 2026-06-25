@@ -1,7 +1,7 @@
 {
   "name": "social-downloader-bot",
   "version": "1.0.0",
-  "description": "Multi-token Telegram Social Media Downloader Bot by SABIR7718 (VOIDSEC)",
+  "description": "Multi-token Telegram Social Media Downloader Bot by SABIR7718 (VOID SEC)",
   "main": "index.js",
   "scripts": {
     "start": "node index.js",
