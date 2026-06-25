@@ -27,13 +27,14 @@
 
 require("dotenv").config();
 process.env.NTBA_FIX_350 = 1;
-const SY = require('node-telegram-bot-api').default;
+const SY = require('node-telegram-bot-api');
 const fs = require('fs');
 const path = require('path');
 const fetch = require('node-fetch').default;
 const {
     log
 } = require("@sabir7718/log");
+console.log(require('node-telegram-bot-api'));
 const config = require("./config");
 const yts = require('yt-search');
 const ffmpeg = require('fluent-ffmpeg');
