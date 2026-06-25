@@ -24,973 +24,1157 @@
  * or termination of the Telegram bot.
  */
 
-
-require("dotenv").config();
-process.env.NTBA_FIX_350 = 1;
-const SY = require('node-telegram-bot-api');
-const fs = require('fs');
-const path = require('path');
-const fetch = require('node-fetch').default;
+const express = require('express');
+const cors = require('cors');
 const {
     log
 } = require("@sabir7718/log");
-console.log(require('node-telegram-bot-api'));
-const config = require("./config");
-const yts = require('yt-search');
-const ffmpeg = require('fluent-ffmpeg');
-const http = require('http');
+const config = require('./config');
+const axios = require("axios");
+const qs = require("qs");
+const fs = require('fs');
+const path = require('path');
 
-const PORT = process.env.PORT || 3000;
+const audioDir = path.join(__dirname, 'public/audio');
 
-const LoveDir = './Love';
-if (!fs.existsSync(LoveDir)) {
-    fs.mkdirSync(LoveDir);
+if (!fs.existsSync(audioDir)) {
+    fs.mkdirSync(audioDir, {
+        recursive: true
+    });
 }
 
-const api = process.env.API;
-
-let waitingForLogo = {};
-
-process.on('uncaughtException', (err) => log('error', 'CRITICAL', err.message));
-process.on('unhandledRejection', (reason) => log('error', 'CRITICAL', reason));
-
-const activeBots = {};
-const notauthorized = '<b>⚠️ 𝖸𝗈𝗎 𝖺𝗋𝖾 𝗇𝗈𝗍 𝖺𝗎𝗍𝗁𝗈𝗋𝗂𝗓𝖾𝖽 𝗍𝗈 𝗎𝗌𝖾 𝗍𝗁𝗂𝗌 𝖼𝗈𝗆𝗆𝖺𝗇𝖽.</b>';
-
-const protectionMessage = `<b>❌ 𝖸𝗈𝗎 𝗆𝗎𝗌𝗍 𝗃𝗈𝗂𝗇 𝗈𝗎𝗋 𝖼𝗁𝖺𝗇𝗇𝖾𝗅 𝖺𝗇𝖽 𝗀𝗋𝗈𝗎𝗉 𝗍𝗈 𝗎𝗌𝖾 𝗍𝗁𝗂𝗌 𝖻𝗈𝗍.\n𝖠𝖿𝗍𝖾𝗋 𝗃𝗈𝗂𝗇𝗂𝗇𝗀, 𝖼𝗅𝗂𝖼𝗄 𝗍𝗁𝖾 𝗏𝖾𝗋𝗂𝖿𝗒 𝖻𝗎𝗍𝗍𝗈𝗇 𝖻𝖾𝗅𝗈𝗐.</b>`;
-
-function getDB() {
-    const dbPath = path.join(LoveDir, 'data.json');
-    const defaultDB = {
-        tokens: [],
-        premium: [],
-        resellers: [],
-        videos: {},
-        messages: {
-            love: [],
-            sad: [],
-            god: []
-        }
-    };
-
-    if (!fs.existsSync(dbPath)) return defaultDB;
-
+async function StartLovingInsta(url_media, LOVE = {
+    retries: 5,
+    delay: 1000
+}) {
     try {
-        const content = fs.readFileSync(dbPath, 'utf8');
-        let data = JSON.parse(content);
-        if (!data.messages) data.messages = defaultDB.messages;
-        return data;
-    } catch (err) {
-        return defaultDB;
-    }
-}
 
-function saveDB(data) {
-    try {
-        fs.writeFileSync(path.join(LoveDir, 'data.json'), JSON.stringify(data, null, 2));
-    } catch (err) {
-        log('error', null, 'Database save error: ' + err.message);
-    }
-}
+        try {
 
-function isPremium(userId) {
-    const db = getDB();
-    return db.premium.some(id => id.toString() === userId.toString());
-}
+            const apiUrl = "https://rabbitapi.nett.to/api/insta2?url=" + encodeURIComponent(url_media);
 
-async function CheckSYlovesToo(userId, adminId) {
-    if (userId.toString() === adminId.toString()) return true;
-
-    try {
-        const response = await fetch(
-            `https://checksylovetoo.onrender.com/checksylovestoo?id=${userId}`
-        );
-        const data = await response.json();
-        return data.isjoined === true;
-    } catch (err) {
-        console.error("Protection API Error:", err.message);
-        return false;
-    }
-}
-
-function SABIR7718() {
-    const diff = Date.now() - startTime;
-    const d = Math.floor(diff / 86400000);
-    const h = Math.floor((diff % 86400000) / 3600000);
-    const m = Math.floor((diff % 3600000) / 60000);
-    return `${d}𝖽 ${h}𝗁 ${m}𝗆`;
-}
-
-const startTime = Date.now();
-
-function mainCaption(name, runtime) {
-    return `<b>─【 𝐒𝐎𝐂𝐈𝐀𝐋 𝐌𝐄𝐃𝐈𝐀 - 𝐃𝐎𝐖𝐍𝐋𝐎𝐀𝐃𝐄𝐑 】─
-
- 𝖴𝗌𝖾𝗋 : ${name}
- 𝖱𝗎𝗇𝗍𝗂𝗆𝖾 : ${runtime}
- 𝖣𝖾𝗏𝖾𝗅𝗈𝗉𝖾𝗋 : ${config.S7}
-
-For Song Use</b> <code>/music</code> <b>( song name )</b>`;
-}
-
-const joinKeyboard = {
-    reply_markup: {
-        inline_keyboard: [
-            [{
-                text: '📢 𝖩𝗈𝗂𝗇 𝖢𝗁𝖺𝗇𝗇𝖾𝗅',
-                url: config.channel
-            }, {
-                text: '👥 𝖩𝗈𝗂𝗇 𝖦𝗋𝗈𝗎𝗉',
-                url: config.group
-            }],
-            [{
-                text: '✅ 𝖵𝖾𝗋𝗂𝖿𝗒 𝖬𝖾𝗆𝖻𝖾𝗋𝗌𝗁𝗂𝗉',
-                callback_data: 'check_membership'
-            }]
-        ]
-    }
-};
-
-function startBot(token, isMain = false) {
-    try {
-        const S7 = new SY(token, {
-            polling: true
-            /*,
-                        baseApiUrl: "https://telegram2.syxs7.us.cc"*/
-        });
-        let botConfig = {
-            ...config
-        };
-        let tokenData = getDB().tokens.find(t => t.token === token);
-
-        if (tokenData && tokenData.config) {
-            botConfig = {
-                ...botConfig,
-                ...tokenData.config
-            };
-        }
-
-        const botOwnerId = tokenData ? tokenData.owner : config.adminId;
-
-        S7.getMe().then(me => {
-            activeBots[token] = S7;
-            log('success', 'BOT', `Started @${me.username}`);
-        }).catch(err => {
-            log('error', 'BOT', `Failed token ${token.slice(0,10)}`);
-        });
-
-        function SYLoVe(commands, callback) {
-            if (!Array.isArray(commands)) commands = [commands];
-
-            S7.on('message', async (msg) => {
-                try {
-                    if (!msg.text) return;
-
-                    const cmd = msg.text.trim().split(' ')[0].slice(1).toLowerCase();
-
-                    if (commands.includes(cmd)) {
-                        const chatId = msg.chat.id;
-                        const userId = msg.from.id;
-
-                        if (botConfig.channelId || botConfig.groupId) {
-                            if (cmd !== 'checkmembership') {
-                                const isMember = await CheckSYlovesToo(userId, botOwnerId);
-
-                                if (!isMember) {
-                                    return S7.sendMessage(chatId,
-                                        `<b>🚫 𝖠𝖼𝖼𝖾𝗌𝗌 𝖣𝖾𝗇𝗂𝖾𝖽!</b>\n\n𝖯𝗅𝖾𝖺𝗌𝖾 𝗃𝗈𝗂𝗇 𝗈𝗎𝗋 𝖼𝗈𝗆𝗆𝗎𝗇𝗂𝗍𝗒 𝗍𝗈 𝖼𝗈𝗇𝗍𝗂𝗇𝗎𝖾.`, {
-                                            parse_mode: 'HTML',
-                                            ...joinKeyboard
-                                        }
-                                    );
-                                }
-                            }
-                        }
-
-                        callback(msg, S7, chatId, userId);
-                    }
-                } catch (err) {
-                    console.error("Downloader Error:", err);
-                    S7.sendMessage(msg.chat.id,
-                        `<b>⚠️ Download Error:</b> <code>${err.message}</code>`, {
-                            parse_mode: "HTML"
-                        }
-                    );
-                }
+            const {
+                data
+            } = await axios.get(apiUrl, {
+                timeout: 20000
             });
+
+            if (data && data.status === true && data.url) {
+
+                return {
+                    url_list: [data.url]
+                };
+
+            }
+
+
+            throw new Error("Rabbit API failed");
+
+        } catch (apiErr) {
+
+            log('error', 'INSTA_API_FAIL', apiErr.message);
+
         }
+
+        url_media = await check_IS_S7_LoVe_SY(url_media);
+
+        const SHORTCODE = getShortcode(url_media);
+
+        const INSTAGRAM_REQUEST = await instagramRequest(
+            SHORTCODE,
+            LOVE.retries,
+            LOVE.delay
+        );
+
+        const OUTPUT_DATA = SYxS7(INSTAGRAM_REQUEST);
+
+        return OUTPUT_DATA;
+
+    } catch (err) {
+
+        throw err;
+
+    }
+}
+
+
+async function StartLovingFace(videoUrl, cookie, useragent) {
+    const parseString = (string) => JSON.parse(`{"text": "${string}"}`).text;
+
+    try {
+
+        const fbUrl = `https://rabbitapi.nett.to/api/fb3?url=${encodeURIComponent(videoUrl)}`;
 
         const {
-            Jimp
-        } = require('jimp');
-
-        S7.on('photo', async (msg) => {
-            const userId = msg.from.id;
-            if (!waitingForLogo[userId]) return;
-
-            const chatId = msg.chat.id;
-            const fileId = msg.photo[msg.photo.length - 1].file_id;
-            const logoPath = path.join(LoveDir, `logo_${userId}.png`);
-
-            try {
-                const fileLink = await S7.getFileLink(fileId);
-                const response = await fetch(fileLink);
-                const arrayBuffer = await response.arrayBuffer();
-                const buffer = Buffer.from(arrayBuffer);
-
-                const image = await Jimp.read(buffer);
-
-                if (image.width !== image.height) {
-                    return S7.sendMessage(chatId, "<b>❌ Photo must be square (4x4)!</b>", {
-                        parse_mode: "HTML"
-                    });
-                }
-
-                image.resize({
-                    w: 500,
-                    h: 500
-                });
-                await image.write(logoPath);
-
-                delete waitingForLogo[userId];
-                S7.sendMessage(chatId, "<b>✅ Logo saved successfully!</b>", {
-                    parse_mode: "HTML"
-                });
-
-            } catch (err) {
-                console.error("Jimp Error Details:", err);
-                S7.sendMessage(chatId, "<b>⚠️ Error saving logo. Please try a different photo.</b>", {
-                    parse_mode: "HTML"
-                });
-            }
+            data
+        } = await axios.get(fbUrl, {
+            timeout: 15000
         });
 
-        SYLoVe('addlogo', (msg, S7, chatId, userId) => {
-            waitingForLogo[userId] = true;
-            S7.sendMessage(chatId, "<b>📸 Send me your logo (4x4/Square photo).</b>", {
-                parse_mode: "HTML"
-            });
-        });
+        if (data?.status && (data.sd || data.hd)) {
 
-        SYLoVe('dellogo', (msg, S7, chatId, userId) => {
-            const logoPath = path.join(LoveDir, `logo_${userId}.png`);
-            if (fs.existsSync(logoPath)) {
-                fs.unlinkSync(logoPath);
-                S7.sendMessage(chatId, "<b>🗑️ Your logo has been deleted.</b>", {
-                    parse_mode: "HTML"
-                });
-            } else {
-                S7.sendMessage(chatId, "<b>❌ You don't have any logo set.</b>", {
-                    parse_mode: "HTML"
-                });
-            }
-        });
+            return {
+                url: videoUrl,
+                duration_ms: 0,
+                sd: data.sd || "",
+                hd: data.hd || "",
+                title: data.title || "Facebook Video",
+                thumbnail: data.thumbnail || "https://placeholder.com/fb-video.jpg"
+            };
 
-        SYLoVe('add', (msg, S7, chatId, userId) => {
-            const args = msg.text.split(' ');
-            if (args.length < 3) {
-                return S7.sendMessage(chatId,
-                    "<b>⚠️ Usage: /add category your message\nCategories: love, sad, god</b>", {
-                        parse_mode: "HTML"
-                    }
-                );
-            }
 
-            const category = args[1].toLowerCase();
-            const content = args.slice(2).join(' ');
+        }
 
-            let db = getDB();
-
-            if (!db.messages[category]) {
-                return S7.sendMessage(chatId, "<b>❌ Invalid category!</b> Use love, sad, or god.", {
-                    parse_mode: "HTML"
-                });
-            }
-
-            db.messages[category].push(content);
-            saveDB(db);
-
-            S7.sendMessage(chatId, `<b>✅ Added to ${category}:</b>\n_"${content}"_`, {
-                parse_mode: "HTML"
-            });
-        });
-
-        SYLoVe('cap', (msg, S7, chatId) => {
-            const args = msg.text.split(' ');
-            const category = args[1] ? args[1].toLowerCase() : null;
-
-            if (!category) {
-                return S7.sendMessage(chatId,
-                    "<b>⚠️ Usage: /cap category \nExample: /cap love</b>", {
-                        parse_mode: "HTML"
-                    }
-                );
-            }
-
-            const db = getDB();
-            const list = db.messages[category];
-
-            if (!list || list.length === 0) {
-                return S7.sendMessage(chatId, `<b>❌ No messages found in ${category}.</b>`, {
-                    parse_mode: "HTML"
-                });
-            }
-
-            const response = `<b>${category.toUpperCase()} Captions..!!</b>\n\n` +
-                list.map((m, i) => `<b>${i + 1}</b>. ${m}`).join('\n\n');
-
-            S7.sendMessage(chatId, response, {
-                parse_mode: "HTML"
-            });
-        });
-
-        SYLoVe(['start', 'menu'], (msg, S7, chatId) => {
-            const name = msg.from.first_name || "𝖴𝗌𝖾𝗋";
-            S7.sendPhoto(chatId, config.logo, {
-                caption: mainCaption(name, SABIR7718()),
-                parse_mode: "HTML",
-                reply_markup: {
-                    inline_keyboard: [
-                        [{
-                            text: '📢 𝖮𝖿𝖿𝗂𝖼𝗂𝖺𝗅 𝖢𝗁𝖺𝗇𝗇𝖾𝗅',
-                            url: config.channel
-                        }],
-                        [{
-                            text: '👥 𝖲𝗎𝗉𝗉𝗈𝗋𝗍 𝖦𝗋𝗈𝗎𝗉',
-                            url: config.group
-                        }]
-                    ]
-                }
-            });
-        });
-
-        SYLoVe('checkmembership', async (msg, S7, chatId, userId) => {
-            const isMember = await CheckSYlovesToo(userId, botOwnerId);
-            if (isMember) {
-                S7.sendMessage(chatId, "<b>✅ 𝖵𝖾𝗋𝗂𝖿𝗂𝖼𝖺𝗍𝗂𝗈𝗇 𝖲𝗎𝖼𝖼𝖾𝗌𝗌𝖿𝗎𝗅! 𝖸𝗈𝗎 𝖼𝖺𝗇 𝗇𝗈𝗐 𝗎𝗌𝖾 𝗍𝗁𝖾 𝖻𝗈𝗍.</b>", {
-                    parse_mode: "HTML"
-                });
-            } else {
-                S7.sendMessage(chatId, protectionMessage, {
-                    parse_mode: 'HTML',
-                    ...joinKeyboard
-                });
-            }
-        });
-
-        SYLoVe('addtoken', (msg, S7, chatId, userId) => {
-            if (userId.toString() !== config.adminId)
-                return S7.sendMessage(chatId, notauthorized, {
-                    parse_mode: "HTML"
-                });
-
-            const token = msg.text.split(' ')[1];
-            if (!token)
-                return S7.sendMessage(chatId, "<b>𝖴𝗌𝖺𝗀𝖾: /𝖺𝖽𝖽𝗍𝗈𝗄𝖾𝗇 &lt;𝗍𝗈𝗄𝖾𝗇&gt;</b>", {
-                    parse_mode: "HTML"
-                });
-
-            let db = getDB();
-            if (db.tokens.some(t => t.token === token))
-                return S7.sendMessage(chatId, "<b>𝖳𝗈𝗄𝖾𝗇 𝖺𝗅𝗋𝖾𝖺𝖽𝗒 𝖾𝗑𝗂𝗌𝗍𝗌.</b>", {
-                    parse_mode: "HTML"
-                });
-
-            db.tokens.push({
-                token,
-                owner: userId.toString()
-            });
-            saveDB(db);
-            startBot(token);
-            S7.sendMessage(chatId, "<b>✅ 𝖭𝖾𝗐 𝖻𝗈𝗍 𝗂𝗇𝗌𝗍𝖺𝗇𝖼𝖾 𝖺𝖼𝗍𝗂𝗏𝖺𝗍𝖾𝖽.</b>", {
-                parse_mode: "HTML"
-            });
-        });
-
-        SYLoVe('deltoken', (msg, S7, chatId, userId) => {
-            if (userId.toString() !== config.adminId)
-                return S7.sendMessage(chatId, notauthorized, {
-                    parse_mode: "HTML"
-                });
-
-            const token = msg.text.split(' ')[1];
-            if (!token)
-                return S7.sendMessage(chatId, "<b>𝖴𝗌𝖺𝗀𝖾: /𝖽𝖾𝗅𝗍𝗈𝗄𝖾𝗇 &lt;𝗍𝗈𝗄𝖾𝗇&gt;</b>", {
-                    parse_mode: "HTML"
-                });
-
-            let db = getDB();
-            const idx = db.tokens.findIndex(t => t.token === token);
-            if (idx === -1)
-                return S7.sendMessage(chatId, "<b>𝖳𝗈𝗄𝖾𝗇 𝗇𝗈𝗍 𝖿𝗈𝗎𝗇𝖽.</b>", {
-                    parse_mode: "HTML"
-                });
-
-            db.tokens.splice(idx, 1);
-            saveDB(db);
-            if (activeBots[token]) {
-                activeBots[token].stopPolling().catch(() => {});
-                delete activeBots[token];
-            }
-            S7.sendMessage(chatId, "<b>🗑️ 𝖳𝗈𝗄𝖾𝗇 𝗋𝖾𝗆𝗈𝗏𝖾𝖽.</b>", {
-                parse_mode: "HTML"
-            });
-        });
-
-        SYLoVe(['music', 'play', 'song'], async (msg, S7, chatId, userId) => {
-            const query = msg.text.split(' ').slice(1).join(' ');
-
-            if (!query) {
-                return S7.sendMessage(
-                    chatId,
-                    "<b>🎧 Please provide a song name!</b>", {
-                        parse_mode: "HTML"
-                    }
-                );
-            }
-
-            const loadingMsg = await S7.sendMessage(
-                chatId,
-                "<b>🔍 Searching...</b>", {
-                    parse_mode: "HTML"
-                }
-            );
-
-            try {
-                const searchResults = await yts(query);
-                const video = searchResults.videos[0];
-
-                if (!video) {
-                    return S7.editMessageText(
-                        "<b>❌ No song found!</b>", {
-                            chat_id: chatId,
-                            message_id: loadingMsg.message_id,
-                            parse_mode: "HTML"
-                        }
-                    );
-                }
-
-                const apiUrl =
-                    `${api}/audiosyhate?url=${encodeURIComponent(video.url)}`;
-
-                const response = await fetch(apiUrl);
-                const json = await response.json();
-
-                console.log("Audio API Response:", JSON.stringify(json, null, 2));
-
-                if (!json.status || !json.audio_url) {
-                    return S7.editMessageText(
-                        "<b>❌ API failed to return audio URL.</b>", {
-                            chat_id: chatId,
-                            message_id: loadingMsg.message_id,
-                            parse_mode: "HTML"
-                        }
-                    );
-                }
-
-                const audioResponse = await fetch(json.audio_url);
-
-                if (!audioResponse.ok) {
-                    throw new Error(
-                        `Audio server returned ${audioResponse.status}`
-                    );
-                }
-
-                const contentType =
-                    audioResponse.headers.get("content-type") || "";
-
-                if (
-                    !contentType.includes("audio") &&
-                    !contentType.includes("mpeg") &&
-                    !contentType.includes("octet-stream")
-                ) {
-                    const errorText = await audioResponse.text();
-
-                    console.log(
-                        "Invalid Audio Response:",
-                        errorText.slice(0, 500)
-                    );
-
-                    throw new Error(
-                        "Audio URL returned HTML/Error page instead of MP3"
-                    );
-                }
-
-                const buffer = Buffer.from(
-                    await audioResponse.arrayBuffer()
-                );
-
-                if (buffer.length < 1024) {
-                    throw new Error(
-                        "Downloaded audio file is too small"
-                    );
-                }
-
-                await S7.sendAudio(
-                    chatId,
-                    buffer, {
-                        caption: `<b>🎧 ${video.title}\n👤 Channel: ${video.author.name}</b>`,
-                        parse_mode: "HTML",
-                        title: video.title,
-                        performer: video.author.name
-                    }, {
-                        filename: `${video.title.replace(/[^\w\s.-]/g, "")}.mp3`,
-                        contentType: "audio/mpeg"
-                    }
-                );
-
-                await S7.deleteMessage(
-                    chatId,
-                    loadingMsg.message_id
-                ).catch(() => {});
-
-            } catch (err) {
-                console.error("Music Error:", err);
-
-                S7.editMessageText(
-                    `<b>⚠️ Error:</b>\n<code>${err.message}</code>`, {
-                        chat_id: chatId,
-                        message_id: loadingMsg.message_id,
-                        parse_mode: "HTML"
-                    }
-                ).catch(() => {});
-            }
-        });
-
-        S7.on('message', async (msg) => {
-            const text = msg.text || '';
-            const chatId = msg.chat.id;
-            const userId = msg.from.id;
-
-            const urlMatch = text.match(/https?:\/\/[^\s]+/);
-            if (!urlMatch || text.startsWith('/')) return;
-
-            const url = urlMatch[0];
-            let apiUrl = '';
-            let platform = '';
-
-            if (url.includes('instagram.com')) {
-                apiUrl = `${api}/sylove?url=${encodeURIComponent(url)}`;
-                platform = 'ig';
-
-            } else if (url.includes('facebook.com') || url.includes('fb.watch')) {
-                apiUrl = `${api}/sylove?url=${encodeURIComponent(url)}`;
-                platform = 'fb';
-
-            } else if (url.includes('youtube.com') || url.includes('youtu.be')) {
-                apiUrl = `${api}/sylove?url=${encodeURIComponent(url)}`;
-                platform = 'yt';
-
-            } else if (url.includes('pin.it') || url.includes('pinterest.com')) {
-                apiUrl = `${api}/sylove?url=${encodeURIComponent(url)}`;
-                platform = 'pin';
-
-            } else if (url.includes('tiktok.com')) {
-                apiUrl = `${api}/sylove?url=${encodeURIComponent(url)}`;
-                platform = 'tt';
-
-            } else if (url.includes('xnxx.com')) {
-                apiUrl = `${api}/sylove?url=${encodeURIComponent(url)}`;
-                platform = 'xnxx';
-
-            } else if (url.includes('xnxx.health')) {
-                apiUrl = `${api}/sylove?url=${encodeURIComponent(url)}`;
-                platform = 'xnxx';
-
-            } else if (url.includes('xhamster.com')) {
-                apiUrl = `${api}/sylove?url=${encodeURIComponent(url)}`;
-                platform = 'xham';
-
-            } else {
-                return;
-            }
-
-            const loadingMsg = await S7.sendMessage(
-                chatId,
-                '<b>Lɪɴᴋ Dᴇᴛᴇᴄᴛᴇᴅ Dᴏᴡɴʟᴏᴀᴅɪɴɢ... <tg-emoji emoji-id="6256016519738691544">❤️</tg-emoji></b>', {
-                    parse_mode: "HTML"
-                }
-            );
-
-            try {
-                const response = await fetch(apiUrl);
-                const json = await response.json();
-                log('info', 'API', `Response ` + JSON.stringify(json, null, 2));
-
-                let downloadUrl = null;
-
-                if (json.video_url) {
-                    downloadUrl = json.video_url;
-                } else if (platform === 'pin' && json.media_url) {
-                    downloadUrl = json.media_url;
-                }
-
-                if (downloadUrl) {
-
-                    let db = getDB();
-
-                    db.videos[userId] = {
-                        url: url,
-                        downloadUrl: downloadUrl,
-                        timestamp: Date.now()
-                    };
-
-                    saveDB(db);
-
-                    const headResponse = await fetch(downloadUrl, {
-                        method: 'HEAD'
-                    });
-
-                    const videoResponse = await fetch(downloadUrl);
-                    const arrayBuffer = await videoResponse.arrayBuffer();
-                    const videoBuffer = Buffer.from(arrayBuffer);
-
-                    const contentLength = headResponse.headers.get('content-length');
-                    const sizeMB = contentLength ? parseInt(contentLength) / (1024 * 1024) : 0;
-
-                    let finalBuffer;
-
-                    if (sizeMB > 40) {
-
-                        await S7.editMessageText(
-                            `<b>⚠️ Video is ${sizeMB.toFixed(2)} MB.\nCompressing to under 40MB...</b>`, {
-                                chat_id: chatId,
-                                message_id: loadingMsg.message_id,
-                                parse_mode: "HTML"
-                            }
-                        );
-
-                        const tempInput = path.resolve(LoveDir, `big_${userId}_${Date.now()}.mp4`);
-                        const tempOutput = path.resolve(LoveDir, `compressed_${userId}_${Date.now()}.mp4`);
-
-                        fs.writeFileSync(tempInput, videoBuffer);
-
-                        await new Promise((resolve, reject) => {
-
-                            ffmpeg(tempInput)
-                                .videoCodec('libx264')
-                                .audioCodec('aac')
-                                .outputOptions([
-                                    '-preset veryfast',
-                                    '-crf 32',
-                                    '-b:a 96k',
-                                    '-movflags +faststart'
-                                ])
-                                .size('?x720')
-                                .on('end', resolve)
-                                .on('error', reject)
-                                .save(tempOutput);
-
-                        });
-
-                        const compressedStats = fs.statSync(tempOutput);
-                        const compressedMB = compressedStats.size / (1024 * 1024);
-
-                        if (compressedMB > 30) {
-
-                            const secondOutput = path.resolve(LoveDir, `compressed2_${userId}_${Date.now()}.mp4`);
-
-                            await new Promise((resolve, reject) => {
-
-                                ffmpeg(tempOutput)
-                                    .videoCodec('libx264')
-                                    .audioCodec('aac')
-                                    .outputOptions([
-                                        '-preset veryfast',
-                                        '-crf 38',
-                                        '-b:a 64k',
-                                        '-movflags +faststart'
-                                    ])
-                                    .size('?x480')
-                                    .on('end', resolve)
-                                    .on('error', reject)
-                                    .save(secondOutput);
-
-                            });
-
-                            finalBuffer = fs.readFileSync(secondOutput);
-
-                            if (fs.existsSync(secondOutput)) fs.unlinkSync(secondOutput);
-
-                        } else {
-
-                            finalBuffer = fs.readFileSync(tempOutput);
-
-                        }
-
-                        if (fs.existsSync(tempInput)) fs.unlinkSync(tempInput);
-                        if (fs.existsSync(tempOutput)) fs.unlinkSync(tempOutput);
-
-                    } else {
-
-                        finalBuffer = videoBuffer;
-
-                    }
-
-                    const logoPath = path.resolve(LoveDir, `logo_${userId}.png`);
-                    const inputPath = path.resolve(LoveDir, `in_${userId}_${Date.now()}.mp4`);
-                    const outputPath = path.resolve(LoveDir, `out_${userId}_${Date.now()}.mp4`);
-
-                    fs.writeFileSync(inputPath, finalBuffer);
-
-                    if (fs.existsSync(logoPath)) {
-                        await S7.editMessageText("<b>✅ Download successful! Adding your logo... ⏳</b>", {
-                            chat_id: chatId,
-                            message_id: loadingMsg.message_id,
-                            parse_mode: "HTML"
-                        });
-
-                        await new Promise((resolve, reject) => {
-                            ffmpeg(inputPath)
-                                .input(logoPath)
-                                .complexFilter([{
-                                        filter: 'scale',
-                                        options: {
-                                            w: 'iw/6',
-                                            h: '-1'
-                                        },
-                                        inputs: '[1:v]',
-                                        outputs: 'scaled_logo'
-                                    },
-                                    {
-                                        filter: 'overlay',
-                                        options: {
-                                            x: '15',
-                                            y: '15'
-                                        },
-                                        inputs: ['[0:v]', 'scaled_logo'],
-                                        outputs: 'final'
-                                    }
-                                ], 'final')
-                                .outputOptions([
-                                    '-preset superfast',
-                                    '-c:v libx264',
-                                    '-pix_fmt yuv420p',
-                                    '-c:a aac',
-                                    '-b:a 128k',
-                                    '-map 0:a?',
-                                    '-shortest'
-                                ])
-                                .output(outputPath)
-                                .on('end', () => resolve())
-                                .on('error', (err) => reject(err))
-                                .run();
-                        });
-
-                        await S7.sendVideo(chatId, fs.readFileSync(outputPath), {
-                            caption: '<b><tg-emoji emoji-id="6253483549890973859">✅</tg-emoji> Dᴏᴡɴʟᴏᴀᴅᴇᴅ Sᴜᴄᴄᴇꜱꜱꜰᴜʟʟʏ! <tg-emoji emoji-id="6296577138615125756">🎉</tg-emoji></b>',
-                            parse_mode: "HTML",
-                            reply_markup: {
-                                inline_keyboard: [
-                                    [{
-                                        text: "Want The Sound?",
-                                        callback_data: `getsound_${userId}`
-                                    }]
-                                ]
-                            }
-                        });
-
-                        if (fs.existsSync(inputPath)) fs.unlinkSync(inputPath);
-                        if (fs.existsSync(outputPath)) fs.unlinkSync(outputPath);
-                    } else {
-                        await S7.sendVideo(chatId, finalBuffer, {
-                            caption: '<b><tg-emoji emoji-id="6253483549890973859"></tg-emoji> Dᴏᴡɴʟᴏᴀᴅᴇᴅ Sᴜᴄᴄᴇꜱꜱꜰᴜʟʟʏ! <tg-emoji emoji-id="6296577138615125756"></tg-emoji></b>',
-                            parse_mode: "HTML"
-                        });
-                        if (fs.existsSync(inputPath)) fs.unlinkSync(inputPath);
-                    }
-
-                    S7.deleteMessage(chatId, loadingMsg.message_id).catch(() => {});
-                } else {
-                    S7.editMessageText(`<b>❌ Error!</b>\nAPI Response: <code>${JSON.stringify(json)}</code>`, {
-                        chat_id: chatId,
-                        message_id: loadingMsg.message_id,
-                        parse_mode: "HTML"
-                    });
-                }
-            } catch (err) {
-                console.error("Global Process Error:", err);
-                S7.editMessageText(`<b>⚠️ Error:</b> <code>${err.message}</code>`, {
-                    chat_id: chatId,
-                    message_id: loadingMsg.message_id,
-                    parse_mode: "HTML"
-                });
-            }
-        });
-
-
-        S7.on('callback_query', async (query) => {
-            if (query.data === 'check_membership') {
-                const isMember = await CheckSYlovesToo(query.from.id, botOwnerId);
-                if (isMember) {
-                    S7.deleteMessage(query.message.chat.id, query.message.message_id).catch(() => {});
-                    S7.sendMessage(query.message.chat.id, "<b>✅ 𝖠𝖼𝖼𝖾𝗌𝗌 𝖦𝗋𝖺𝗇𝗍𝖾𝖽!</b>", {
-                        parse_mode: "HTML"
-                    });
-                } else {
-                    S7.answerCallbackQuery(query.id, {
-                        text: "❌ 𝖸𝗈𝗎 𝗁𝖺𝗏𝖾𝗇'𝗍 𝗃𝗈𝗂𝗇𝖾𝖽 𝗒𝖾𝗍!",
-                        show_alert: true
-                    });
-                }
-            }
-            if (query.data.startsWith("getsound_")) {
-
-                const targetUser = query.data.split("_")[1];
-
-                let db = getDB();
-                const videoData = db.videos?.[targetUser];
-
-                if (!videoData) {
-                    return S7.answerCallbackQuery(query.id, {
-                        text: "❌ Video data expired.",
-                        show_alert: true
-                    });
-                }
-
-                await S7.answerCallbackQuery(query.id, {
-                    text: "🎵 Downloading Audio..."
-                });
-
-                try {
-
-                    const apiUrl = `${api}/audiosyhate?url=${encodeURIComponent(videoData.url)}`;
-
-                    const response = await fetch(apiUrl);
-                    const json = await response.json();
-
-                    if (!json.audio_url) {
-                        return S7.sendMessage(
-                            query.message.chat.id,
-                            "<b>❌ Audio not found.</b>", {
-                                parse_mode: "HTML"
-                            }
-                        );
-                    }
-
-                    const audioRes = await fetch(json.audio_url);
-                    const audioBuffer = Buffer.from(await audioRes.arrayBuffer());
-
-                    await S7.sendAudio(
-                        query.message.chat.id,
-                        audioBuffer, {
-                            caption: '<b><tg-emoji emoji-id="6253483549890973859">✅</tg-emoji> Dᴏᴡɴʟᴏᴀᴅᴇᴅ Sᴜᴄᴄᴇꜱꜱꜰᴜʟʟʏ! <tg-emoji emoji-id="6296577138615125756">🎉</tg-emoji></b>',
-                            parse_mode: "HTML"
-                        }
-                    );
-
-                    await S7.editMessageReplyMarkup({
-                        inline_keyboard: [
-                            [{
-                                text: "Want The Sound?",
-                                url: "https://t.me/zoromdlite"
-                            }]
-                        ]
-                    }, {
-                        chat_id: query.message.chat.id,
-                        message_id: query.message.message_id
-                    });
-
-                    delete db.videos[targetUser];
-                    saveDB(db);
-
-                } catch (err) {
-                    console.error(err);
-                }
-
-                return;
-            }
-        });
+        throw new Error("Rabbit API failed");
 
     } catch (err) {
-        log('error', 'SYSTEM', err.message);
+
+        log('error', 'FB_API_FAIL', err.message);
+
+    }
+
+    try {
+        const fb3Url = `https://rabbitapi.nett.to/api/fb3?url=${encodeURIComponent(videoUrl)}`;
+        const {
+            data
+        } = await axios.get(fb3Url, {
+            timeout: 15000
+        });
+
+        if (data?.status && data.result && typeof data.result === 'string') {
+            return {
+                url: videoUrl,
+                duration_ms: 0,
+                sd: data.result,
+                hd: "",
+                title: "Facebook Video",
+                thumbnail: ""
+            };
+        }
+    } catch (err) {
+        log('error', 'FB_API_FB3_FAIL', err.message);
+    }
+
+    return new Promise((resolve, reject) => {
+        const headers = {
+            "authority": "www.facebook.com",
+            "user-agent": useragent || "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/89.0.4389.114 Safari/537.36",
+            "cookie": cookie || "sb=Rn8BYQvCEb2fpMQZjsd6L382;",
+            "accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8"
+        };
+
+        if (!videoUrl || !videoUrl.trim()) return reject("Please specify the Facebook URL");
+
+        axios.get(videoUrl, {
+            headers,
+            timeout: 20000
+        }).then(({
+            data: html
+        }) => {
+            html = html.replace(/&quot;/g, '"').replace(/&amp;/g, "&");
+
+            const sdMatch = html.match(/"browser_native_sd_url":"(.*?)"/) ||
+                html.match(/"playable_url":"(.*?)"/) ||
+                html.match(/sd_src\s*:\s*"([^"]*)"/);
+
+            const hdMatch = html.match(/"browser_native_hd_url":"(.*?)"/) ||
+                html.match(/"playable_url_quality_hd":"(.*?)"/) ||
+                html.match(/hd_src\s*:\s*"([^"]*)"/);
+
+            if (sdMatch && sdMatch[1]) {
+                resolve({
+                    url: videoUrl,
+                    sd: parseString(sdMatch[1]),
+                    hd: hdMatch ? parseString(hdMatch[1]) : "",
+                    title: html.match(/<title>(.*?)<\/title>/)?.[1] || "Facebook Video",
+                    thumbnail: ""
+                });
+            } else {
+                reject("Scraping failed: Video private or incompatible.");
+            }
+        }).catch(err => reject(`All methods failed: ${err.message}`));
+    });
+}
+
+
+async function StartLovingTok(tiktokUrl) {
+    return new Promise(async (resolve, reject) => {
+        try {
+            if (!tiktokUrl || !tiktokUrl.includes("tiktok.com")) {
+                return reject("Invalid TikTok URL");
+            }
+
+            const response = await axios.post("https://www.tikwm.com/api/", qs.stringify({
+                url: tiktokUrl,
+                web: 1
+            }), {
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+                }
+            });
+
+            const data = response.data.data;
+            if (!data) return reject("Failed to fetch TikTok data.");
+            const base = "https://www.tikwm.com";
+
+            resolve({
+                status: "success",
+                platform: "TikTok",
+                title: data.title || "TikTok Video",
+                video_url: base + (data.hdplay || data.play),
+                music: base + data.music,
+                author: {
+                    username: data.author.unique_id,
+                    nickname: data.author.nickname,
+                    avatar: base + data.author.avatar
+                },
+                statistics: {
+                    views: data.play_count,
+                    likes: data.digg_count,
+                    comments: data.comment_count,
+                    shares: data.share_count
+                },
+                dev: "SABIR7718"
+            });
+        } catch (err) {
+            reject(`TikTok Error: ${err.message}`);
+        }
+    });
+}
+
+async function StartLovingTube(videoUrl) {
+    return new Promise(async (resolve, reject) => {
+        try {
+            if (videoUrl.includes('/shorts/')) {
+                videoUrl = videoUrl.replace('/shorts/', '/watch?v=');
+            }
+
+            try {
+                const apiUrl = `https://newapi-rypa.onrender.com/api/ytmp4?url=${encodeURIComponent(videoUrl)}`;
+                const res = await axios.get(apiUrl);
+
+                if (res.data && res.data.status === true) {
+                    const downloadData = res.data.download?.video;
+
+                    const videoDownloadUrl = downloadData?.["720p"]?.url ||
+                        downloadData?.["1080p"]?.url ||
+                        downloadData?.["360p"]?.url;
+
+                    if (videoDownloadUrl) {
+                        return resolve({
+                            status: "success",
+                            platform: "YouTube",
+                            title: res.data.metadata?.title || "YouTube Video",
+                            video_url: videoDownloadUrl,
+                            dev: "SABIR7718"
+                        });
+                    }
+                }
+            } catch (err) {}
+
+            try {
+                const cobaltRes = await axios.post("https://api.cobalt.tools/api/json", {
+                    url: videoUrl,
+                    vQuality: "720"
+                }, {
+                    headers: {
+                        'Accept': 'application/json',
+                        'Content-Type': 'application/json',
+                        'Origin': 'https://cobalt.tools',
+                        'Referer': 'https://cobalt.tools/',
+                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+                    }
+                });
+
+                if (cobaltRes.data && cobaltRes.data.url) {
+                    return resolve({
+                        status: "success",
+                        platform: "YouTube (Cobalt)",
+                        title: "YouTube Video",
+                        video_url: cobaltRes.data.url,
+                        dev: "SABIR7718"
+                    });
+                }
+            } catch (cobaltErr) {}
+
+            try {
+                const fallbackRes = await axios.get(`https://api.siputzx.my.id/api/d/ytmp4?url=${encodeURIComponent(videoUrl)}`);
+                if (fallbackRes.data && fallbackRes.data.data && fallbackRes.data.data.dl) {
+                    return resolve({
+                        status: "success",
+                        platform: "YouTube (Siputzx)",
+                        title: fallbackRes.data.data.title || "YouTube Video",
+                        video_url: fallbackRes.data.data.dl,
+                        dev: "SABIR7718"
+                    });
+                }
+            } catch (fErr) {}
+
+            reject(new Error("Failed to fetch download link from all providers."));
+
+        } catch (err) {
+            reject(err);
+        }
+    });
+}
+
+
+async function check_IS_S7_LoVe_SY(url) {
+    let split_url = url.split("/");
+    if (split_url.includes("share")) {
+        let res = await axios.get(url);
+        return res.request.path;
+    }
+    return url;
+}
+
+function formatPostInfo(S7_LoVe_SY) {
+    try {
+        let mediaCapt = S7_LoVe_SY.edge_media_to_caption.edges;
+        const capt = (mediaCapt.length === 0) ? "" : mediaCapt[0].node.text;
+        return {
+            owner_username: S7_LoVe_SY.owner.username,
+            owner_fullname: S7_LoVe_SY.owner.full_name,
+            is_verified: S7_LoVe_SY.owner.is_verified,
+            is_private: S7_LoVe_SY.owner.is_private,
+            likes: S7_LoVe_SY.edge_media_preview_like.count,
+            is_ad: S7_LoVe_SY.is_ad,
+            caption: capt
+        };
+    } catch (err) {
+        throw new Error(`Failed to format post info: ${err.message}`);
     }
 }
 
-startBot(config.mainToken, true);
-const db = getDB();
-//db.tokens.forEach(item => startBot(item.token));
-
-log('info', 'SYSTEM', `Premium System Online.`);
-
-const RENDER_URL = "https://checksylovetoo.onrender.com/checksylovestoo?id=1823013721";
-const LOVESY = api;
-
-async function keepSYloveAlive() {
-    const urls = [RENDER_URL, LOVESY];
-
+function formatSYLoveDetails(mediaData) {
     try {
-        const requests = urls.map(url => {
-            const controller = new AbortController();
-            const timeout = setTimeout(() => controller.abort(), 10000);
+        if (!mediaData) {
+            throw new Error("mediaData is undefined");
+        }
 
-            return fetch(url, {
-                    signal: controller.signal
-                })
-                .then(res => {
-                    clearTimeout(timeout);
-                    if (!res.ok) return null;
-                    return res.json().catch(() => null);
-                })
-                .catch(() => null);
+        if (mediaData.is_video !== undefined) {
+            if (mediaData.is_video) {
+                return {
+                    type: "video",
+                    dimensions: mediaData.dimensions || null,
+                    video_view_count: mediaData.video_view_count || 0,
+                    url: mediaData.video_url || null,
+                    thumbnail: mediaData.display_url || null
+                };
+            } else {
+                return {
+                    type: "image",
+                    dimensions: mediaData.dimensions || null,
+                    url: mediaData.display_url || null
+                };
+            }
+        }
+
+        return {
+            type: "unknown",
+            raw: mediaData
+        };
+
+    } catch (err) {
+        throw new Error(`Failed to format media details: ${err.message}`);
+    }
+}
+
+function getShortcode(url) {
+    try {
+        let split_url = url.split("/");
+        let post_tags = ["p", "reel", "tv", "reels"];
+        let index_shortcode = split_url.findIndex(item => post_tags.includes(item)) + 1;
+        let shortcode = split_url[index_shortcode];
+        return shortcode;
+    } catch (err) {
+        throw new Error(`Failed to obtain shortcode: ${err.message}`);
+    }
+}
+async function getCSRF_SYLoVe() {
+    try {
+        let LOVE = {
+            method: 'GET',
+            url: 'https://www.instagram.com/',
+        };
+        const SYLoVe = await new Promise((resolve, reject) => {
+            axios.request(LOVE).then((response) => {
+                if (!response.headers['set-cookie']) {
+                    reject(new Error('CSRF not found in response headers.'));
+                } else {
+                    const csrfCookie = response.headers['set-cookie'][0];
+                    const csrfSYLoVe = csrfCookie.split(";")[0].replace("csrftoken=", '');
+                    resolve(csrfSYLoVe);
+                }
+            }).catch((err) => {
+                reject(err);
+            });
         });
-
-        const results = await Promise.all(requests);
-
-        if (results[0]?.isjoined !== undefined) {
-            console.log("🟢 Render Awake");
-        }
-
-        if (results[1] !== null) {
-            console.log("🟢 LOVESY Awake");
-        }
-
+        return SYLoVe;
     } catch (err) {}
 }
 
-keepSYloveAlive();
-setInterval(keepSYloveAlive, 5 * 60 * 1000);
+function isLove(S7_LoVe_SY) {
+    try {
+        return S7_LoVe_SY["__typename"] == "XDTGraphSidecar";
+    } catch (err) {}
+}
 
-const server = http.createServer((req, res) => {
-    const uptime = SABIR7718();
+async function downloadTemporaryVideo(videoUrl) {
+    return new Promise(async (resolve, reject) => {
+        try {
+            const fs = require('fs');
+            const path = require('path');
+            const fileName = `yt_video_${Date.now()}.mp4`;
+            const outputPath = path.join(__dirname, 'public/audio', fileName);
 
-    const responseData = {
-        status: "online",
-        message: "Bot is Running Successfully",
-        uptime: uptime,
-        developer: "SABIR7718",
-        timestamp: new Date().toISOString()
-    };
+            const response = await axios({
+                url: videoUrl,
+                method: 'GET',
+                responseType: 'stream',
+                headers: {
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+                    'Accept': '*/*',
+                    'Accept-Language': 'en-US,en;q=0.9',
+                    'Referer': 'https://www.youtube.com/'
+                },
+                timeout: 60000
+            });
 
-    res.writeHead(200, {
-        'Content-Type': 'application/json',
-        'Access-Control-Allow-Origin': '*'
+            const writer = fs.createWriteStream(outputPath);
+            response.data.pipe(writer);
+
+            writer.on('finish', () => {
+                setTimeout(() => {
+                    fs.unlink(outputPath, (err) => {
+                        if (err) {
+                            log('error', 'VIDEO_CLEANER', `Delete failed: ${err.message}`);
+                        } else {
+                            log('info', 'VIDEO_CLEANER', `Deleted temp video file: ${fileName}`);
+                        }
+                    });
+                }, 5 * 60 * 1000); // 5 minutes delete lock
+
+                resolve(fileName);
+            });
+
+            writer.on('error', (err) => reject(err));
+        } catch (err) {
+            reject(err);
+        }
+    });
+}
+
+
+
+async function instagramRequest(shortcode, retries, delay) {
+    var _a;
+    try {
+        const Love_URL_SYxS7 = "https://www.instagram.com/graphql/query";
+        const InstalLoveId_SYxS7 = "9510064595728286";
+        let dataBody = qs.stringify({
+            'variables': JSON.stringify({
+                'shortcode': shortcode,
+                'fetch_tagged_user_count': null,
+                'hoisted_comment_id': null,
+                'hoisted_reply_id': null
+            }),
+            'doc_id': InstalLoveId_SYxS7
+        });
+        const SYLoVe = await getCSRF_SYLoVe();
+        let LOVE = {
+            method: 'post',
+            maxBodyLength: Infinity,
+            url: Love_URL_SYxS7,
+            headers: {
+                'X-CSRFToken': SYLoVe,
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)',
+                'Accept': '*/*',
+                'Accept-Language': 'en-US,en;q=0.9',
+                'Content-Type': 'application/x-www-form-urlencoded',
+                'Origin': 'https://www.instagram.com',
+                'Referer': 'https://www.instagram.com/',
+            },
+            data: dataBody
+        };
+        const {
+            data
+        } = await axios.request(LOVE);
+        if (!((_a = data.data) === null || _a === void 0 ? void 0 : _a.xdt_shortcode_media))
+            throw new Error("Only posts/reels supported, check if your link is valid.");
+        return data.data.xdt_shortcode_media;
+    } catch (err) {
+        const errorCodes = [429, 403];
+        if (err.response && errorCodes.includes(err.response.status) && retries > 0) {
+            const retryAfter = err.response.headers['retry-after'];
+            const waitTime = retryAfter ? parseInt(retryAfter) * 1000 : delay;
+            await new Promise(res => setTimeout(res, waitTime));
+            return instagramRequest(shortcode, retries - 1, delay * 2);
+        }
+    }
+}
+
+async function StartLovingXNXX(videoUrl) {
+
+    return new Promise(async (resolve, reject) => {
+
+        try {
+
+            if (
+                !videoUrl.includes("xnxx.com") &&
+                !videoUrl.includes("xnxx.health")
+            ) {
+                return reject("Invalid XNXX/XVideos URL");
+            }
+
+            const {
+                data
+            } = await axios.get(videoUrl, {
+                timeout: 30000,
+                headers: {
+                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36",
+                    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
+                    "Accept-Language": "en-US,en;q=0.9",
+                    "Referer": "https://www.google.com/"
+                }
+            });
+
+            const title =
+                data.match(/<title>(.*?)<\/title>/i)?.[1]
+                ?.replace("- XNXX.COM", "")
+                ?.trim() || "XNXX Video";
+
+            const thumb =
+                data.match(/setThumbUrl\('(.*?)'\)/)?.[1]
+                ?.replace(/\\u002F/g, "/")
+                ?.replace(/\\/g, "");
+
+            const low =
+                data.match(/setVideoUrlLow\('(.*?)'\)/)?.[1]
+                ?.replace(/\\u002F/g, "/")
+                ?.replace(/\\/g, "");
+
+            const high =
+                data.match(/setVideoUrlHigh\('(.*?)'\)/)?.[1]
+                ?.replace(/\\u002F/g, "/")
+                ?.replace(/\\/g, "");
+
+            const hls =
+                data.match(/setVideoHLS\('(.*?)'\)/)?.[1]
+                ?.replace(/\\u002F/g, "/")
+                ?.replace(/\\/g, "");
+
+            const duration =
+                data.match(/"duration":"(.*?)"/)?.[1] || null;
+
+            if (!high && !low && !hls) {
+                return reject("Video not found");
+            }
+
+            resolve({
+                status: "success",
+                platform: "XNXX",
+                title,
+                thumbnail: thumb,
+                duration,
+                video_url: high || low || hls,
+                quality: {
+                    low,
+                    high,
+                    hls
+                },
+                dev: "SABIR7718"
+            });
+
+        } catch (err) {
+
+            reject(`XNXX Error: ${err.message}`);
+
+        }
+
     });
 
-    res.end(JSON.stringify(responseData, null, 2));
-});
-
-server.listen(PORT, () => {
-    log('success', 'HTTP', `Uptime server started on port ${PORT}`);
-});
-
-if (process.env.URL) {
-
-    (async () => {
-        try {
-            const res = await fetch(process.env.URL);
-            log('info', 'PING', `Pinged: ${process.env.URL} | Status: ${res.status}`);
-        } catch (err) {
-            log('error', 'PING', err.message);
-        }
-    })();
-
-    setInterval(async () => {
-        try {
-            const res = await fetch(process.env.URL);
-            log('info', 'PING', `Pinged: ${process.env.URL} | Status: ${res.status}`);
-        } catch (err) {
-            log('error', 'PING', err.message);
-        }
-    }, 5 * 60 * 1000);
 }
+
+async function mp4ToMp3(videoUrl) {
+    return new Promise(async (resolve, reject) => {
+        try {
+            const ffmpeg = require('fluent-ffmpeg');
+            const ffmpegPath = require('ffmpeg-static');
+            const fs = require('fs');
+            const path = require('path');
+            const fileName = `audio_${Date.now()}.mp3`;
+            const outputPath = path.join(__dirname, 'public/audio', fileName);
+
+            const response = await axios({
+                url: videoUrl,
+                method: 'GET',
+                responseType: 'stream'
+            });
+
+            ffmpeg(response.data)
+                .audioCodec('libmp3lame')
+                .audioBitrate(128)
+                .format('mp3')
+                .save(outputPath)
+                .on('end', () => {
+
+                    setTimeout(() => {
+                        fs.unlink(outputPath, (err) => {
+                            if (err) {
+                                log('error', 'AUDIO_CLEANER', `Delete failed: ${err.message}`);
+                            } else {
+                                log('info', 'AUDIO_CLEANER', `Deleted file: ${fileName}`);
+                            }
+                        });
+                    }, 2 * 60 * 1000);
+
+                    resolve(fileName);
+                })
+                .on('error', (err) => {
+                    reject(err);
+                });
+
+        } catch (err) {
+            reject(err);
+        }
+    });
+}
+
+async function StartLovingXHamster(videoUrl, req) {
+
+    return new Promise(async (resolve, reject) => {
+
+        try {
+
+            if (!videoUrl.includes("xhamster.com")) {
+                return reject("Invalid XHamster URL");
+            }
+
+            const response = await axios.get(videoUrl, {
+                timeout: 30000,
+                headers: {
+                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36",
+                    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
+                    "Accept-Language": "en-US,en;q=0.9",
+                    "Referer": "https://www.google.com/"
+                }
+            });
+
+            const data = response.data;
+
+            const title =
+                data.match(/<title>(.*?)<\/title>/i)?.[1]
+                ?.replace(/\s-\s*xHamster.*/i, "")
+                ?.trim() || "XHamster Video";
+
+            const thumbnail =
+                data.match(/"thumbnailUrl":"(.*?)"/)?.[1]
+                ?.replace(/\\\//g, "/");
+
+            const mp4Matches = [
+                ...data.matchAll(/https:[^"]+\.mp4(?!\.m3u8)[^"]*/g)
+            ];
+
+            const hlsMatches = [
+                ...data.matchAll(/https:[^"]+\.m3u8[^"]*/g)
+            ];
+
+            const mp4Regex =
+                /https?:\/\/[^"'\\\s]+\.mp4[^"'\\\s]*/g;
+
+            const rawMp4s = data.match(mp4Regex) || [];
+
+            const cleanMp4s = rawMp4s
+                .map(v =>
+                    v
+                    .replace(/\\u002F/g, "/")
+                    .replace(/\\/g, "")
+                )
+                .filter(v =>
+                    !v.includes(".m3u8") &&
+                    !v.includes("/thumb-") &&
+                    !v.includes(".t.av1.mp4") &&
+                    !v.includes("sprite") &&
+                    !v.includes("thumb") &&
+                    !v.includes("preview")
+                );
+
+            const mp4 =
+                cleanMp4s.find(v =>
+                    v.includes("1080")
+                ) ||
+                cleanMp4s.find(v =>
+                    v.includes("720")
+                ) ||
+                cleanMp4s.find(v =>
+                    v.includes("480")
+                ) ||
+                cleanMp4s[0] ||
+                null;
+
+            const hls =
+                hlsMatches?.[0]?.[0]
+                ?.replace(/\\u002F/g, "/")
+                ?.replace(/\\/g, "");
+
+            const duration =
+                data.match(/"duration":"(.*?)"/)?.[1] || null;
+
+            if (!mp4 && !hls) {
+                return reject("No video stream found");
+            }
+
+            resolve({
+                status: "success",
+                platform: "XHamster",
+                video_url: `${req.protocol}://${req.get('host')}/proxyxhamster?url=${encodeURIComponent(mp4 || hls)}`,
+                title,
+                thumbnail,
+                duration,
+                dev: "SABIR7718"
+            });
+
+        } catch (err) {
+
+            console.log(err);
+
+            reject(
+                err?.response?.data ||
+                err?.message ||
+                "Unknown XHamster Error"
+            );
+
+        }
+
+    });
+
+}
+
+const {
+    execFile
+} = require('child_process');
+
+function getRedirectUrl(url) {
+    return new Promise((resolve) => {
+        execFile(
+            'curl',
+            ['-sI', url],
+            (err, stdout) => {
+                if (err) return resolve(url);
+
+                const match = stdout.match(
+                    /^location:\s*(.+)$/im
+                );
+
+                resolve(
+                    match?.[1]?.trim() || url
+                );
+            }
+        );
+    });
+}
+
+function SYxS7(S7_LoVe_SY) {
+    try {
+        let url_list = [],
+            media_details = [];
+        const IS_LOVE = isLove(S7_LoVe_SY);
+        if (IS_LOVE) {
+            S7_LoVe_SY.edge_sidecar_to_children.edges.forEach((media) => {
+                if (!media?.node) return;
+                media_details.push(formatSYLoveDetails(media.node));
+                if (media.node.is_video) {
+                    url_list.push(media.node.video_url);
+                } else {
+                    url_list.push(media.node.display_url);
+                }
+            });
+        } else {
+            media_details.push(formatSYLoveDetails(S7_LoVe_SY));
+            if (S7_LoVe_SY.is_video) {
+                url_list.push(S7_LoVe_SY.video_url);
+            } else {
+                url_list.push(S7_LoVe_SY.display_url);
+            }
+        }
+        return {
+            results_number: url_list.length,
+            url_list,
+            post_info: formatPostInfo(S7_LoVe_SY),
+            media_details
+        };
+    } catch (err) {
+        throw new Error(`Failed to create output data: ${err.message}`);
+    }
+}
+
+
+const SABIR7718 = express();
+const PORT = 3000;
+
+SABIR7718.use(cors());
+SABIR7718.use(express.json());
+
+const SABIR_LOvS_SY = StartLovingInsta;
+const Do_You_Love_S7 = StartLovingFace;
+
+async function getReel(url) {
+    try {
+        const res = await axios.get(url, {
+            headers: {
+                "User-Agent": "Mozilla/5.0 (Linux; Android 10)",
+                "Accept": "text/html",
+                "Cookie": config.instaCookie
+            }
+        });
+
+        const html = res.data;
+
+        if (html.includes("login")) {
+            throw new Error("Blocked (login page)");
+        }
+
+        const jsonMatch = html.match(/window\._sharedData = (.*?);<\/script>/);
+
+        if (!jsonMatch) {
+            throw new Error("Shared data not found");
+        }
+
+        const json = JSON.parse(jsonMatch[1]);
+
+        const media =
+            json?.entry_data?.PostPage?.[0]?.graphql?.shortcode_media;
+
+        if (!media) {
+            throw new Error("Media not found in JSON");
+        }
+
+        if (!media.video_url) {
+            throw new Error("No video in this post");
+        }
+
+        return {
+            status: true,
+            url: media.video_url
+        };
+
+    } catch (err) {
+        throw new Error("Final Android method failed: " + err.message);
+    }
+}
+
+SABIR7718.get('/sylove', async (req, res) => {
+    const targetUrl = req.query.url;
+
+    if (!targetUrl) {
+        return res.status(400).json({
+            status: "error",
+            message: "URL is required"
+        });
+    }
+
+    try {
+        // --- INSTAGRAM ---
+        if (targetUrl.includes('instagram.com') || targetUrl.includes('instagr.am')) {
+            log('info', 'API', `INSTAGRAM_REQ-${targetUrl}`);
+            const SY_LoVe = await SABIR_LOvS_SY(targetUrl);
+            return res.json({
+                status: "success",
+                platform: "Instagram",
+                results: SY_LoVe.results_number,
+                video_url: SY_LoVe.url_list,
+                post_info: SY_LoVe.post_info,
+                dev: "SABIR7718"
+            });
+        }
+
+        // --- FACEBOOK ---
+        else if (targetUrl.includes('facebook.com') || targetUrl.includes('fb.watch') || targetUrl.includes('fb.com')) {
+            log('info', 'API', `FACEBOOK_REQ-${targetUrl}`);
+            const S7_LoVe_SY = await Do_You_Love_S7(targetUrl);
+            return res.json({
+                status: "success",
+                platform: "Facebook",
+                video_url: S7_LoVe_SY.hd || S7_LoVe_SY.sd,
+                title: S7_LoVe_SY.title,
+                dev: "SABIR7718"
+            });
+        }
+
+        // --- TIKTOK ---
+        else if (targetUrl.includes('tiktok.com')) {
+            log('info', 'API', `TIKTOK_REQ-${targetUrl}`);
+            const Tok_Data = await StartLovingTok(targetUrl);
+            return res.json(Tok_Data);
+        }
+
+        // --- YOUTUBE ---
+        else if (targetUrl.includes('youtube.com') || targetUrl.includes('youtu.be')) {
+            log('info', 'API', `YOUTUBE_REQ-${targetUrl}`);
+
+            try {
+                const Tube_Data = await StartLovingTube(targetUrl);
+
+                if (Tube_Data && Tube_Data.video_url) {
+                    log('info', 'API', `Downloading YouTube video to local storage...`);
+
+                    const localFileName = await downloadTemporaryVideo(Tube_Data.video_url);
+
+                    const temporaryVideoUrl = `${req.protocol}://${req.get('host')}/audio/${localFileName}`;
+
+                    return res.json({
+                        status: "success",
+                        platform: "YouTube (Temporary Local Link)",
+                        title: Tube_Data.title || "YouTube Video",
+                        video_url: temporaryVideoUrl,
+                        expires_in: "5 minutes",
+                        dev: "SABIR7718"
+                    });
+                } else {
+                    throw new Error("No video URL found from providers.");
+                }
+            } catch (err) {
+                log('error', 'API', `YouTube Primary & local download failed: ${err.message}`);
+                throw new Error(err.message);
+            }
+        }
+
+
+        // --- PINTEREST ---
+        else if (targetUrl.includes('pinterest.com') || targetUrl.includes('pin.it')) {
+            log('info', 'API', `PINTEREST_REQ-${targetUrl}`);
+
+            try {
+                const api = `https://rabbitapi.nett.to/api/pinterest?url=${encodeURIComponent(targetUrl)}`;
+
+                const response = await axios.get(api, {
+                    timeout: 30000,
+                    headers: {
+                        "User-Agent": "Mozilla/5.0"
+                    }
+                });
+
+                const resData = response.data;
+
+                if (resData && resData.status === true && resData.url) {
+
+                    const isVideo = resData.url.includes('.mp4');
+
+                    return res.json({
+                        status: "success",
+                        platform: "Pinterest",
+                        type: isVideo ? "video" : "image",
+                        media_url: resData.url,
+                        title: resData.title || "",
+                        thumbnail: resData.thumbnail || "",
+                        dev: "NOO"
+                    });
+                }
+
+                throw new Error("Pinterest API returned invalid response structure");
+
+            } catch (err) {
+                log('error', 'PINTEREST_API_FAIL', err.message);
+                return res.json({
+                    status: "failed",
+                    platform: "Pinterest",
+                    message: err.message
+                });
+            }
+        }
+
+
+        // --- XNXX / XVIDEOS ---
+        else if (
+            targetUrl.includes('xnxx.com') ||
+            targetUrl.includes('xnxx.health')
+        ) {
+
+            log('info', 'API', `XNXX_REQ-${targetUrl}`);
+
+            const data = await StartLovingXNXX(targetUrl);
+
+            return res.json(data);
+
+        }
+
+        // --- XHAMSTER ---
+        else if (targetUrl.includes('xhamster.com')) {
+
+            log('info', 'API', `XHAMSTER_REQ-${targetUrl}`);
+
+            const data = await StartLovingXHamster(targetUrl, req);
+
+            return res.json(data);
+
+        }
+
+        res.status(404).json({
+            status: "fail",
+            message: "Platform not supported"
+        });
+
+    } catch (err) {
+        log('error', 'API', `${err.message}`);
+        res.status(500).json({
+            status: "error",
+            message: err.message
+        });
+    }
+});
+
+SABIR7718.get('/audiosyhate', async (req, res) => {
+    const targetUrl = req.query.url;
+
+    if (!targetUrl) {
+        return res.status(400).json({
+            status: "error",
+            message: "URL is required"
+        });
+    }
+
+    try {
+        let videoUrl = null;
+
+        // --- INSTAGRAM ---
+        if (targetUrl.includes('instagram.com') || targetUrl.includes('instagr.am')) {
+            log('info', 'API', `INSTAGRAM_AUDIO-${targetUrl}`);
+            const SY_LoVe = await SABIR_LOvS_SY(targetUrl);
+            videoUrl = SY_LoVe.url_list[0];
+        }
+
+        // --- FACEBOOK ---
+        else if (targetUrl.includes('facebook.com') || targetUrl.includes('fb.watch') || targetUrl.includes('fb.com')) {
+            log('info', 'API', `FACEBOOK_AUDIO-${targetUrl}`);
+            const data = await Do_You_Love_S7(targetUrl);
+            videoUrl = data.hd || data.sd;
+        }
+
+        // --- TIKTOK ---
+        else if (targetUrl.includes('tiktok.com')) {
+            log('info', 'API', `TIKTOK_AUDIO-${targetUrl}`);
+            const data = await StartLovingTok(targetUrl);
+            videoUrl = data.video_url;
+        }
+
+        // --- YOUTUBE (API + FALLBACK) ---
+        else if (targetUrl.includes('youtube.com') || targetUrl.includes('youtu.be')) {
+            log('info', 'API', `YOUTUBE_AUDIO-${targetUrl}`);
+
+            try {
+                const apiUrl = "https://rabbitapi.nett.to/api/song?url=" + encodeURIComponent(targetUrl);
+
+                const {
+                    data
+                } = await axios.get(apiUrl, {
+                    timeout: 30000
+                });
+
+                if (data?.success && data?.result?.audio) {
+
+                    const finalUrl = await getRedirectUrl(data.result.audio);
+
+                    return res.json({
+                        status: "success",
+                        platform: "YouTube",
+                        title: data.result.title,
+                        audio_url: finalUrl,
+                        dev: "SABIR7718"
+                    });
+                }
+
+                throw new Error("API returned success=false or no audio");
+
+            } catch (e) {
+                log('error', 'YOUTUBE_API_FAIL', e.message);
+
+                const data = await StartLovingTube(targetUrl);
+
+                return res.json({
+                    status: "success",
+                    platform: "YouTube",
+                    audio_url: data.video_url || data.audio_url,
+                    dev: "SABIR7718"
+                });
+            }
+        }
+
+        if (!videoUrl) {
+            return res.status(400).json({
+                status: "error",
+                message: "Unsupported or invalid URL"
+            });
+        }
+
+        const fileName = await mp4ToMp3(videoUrl);
+
+        const audioUrl = `${req.protocol}://${req.get('host')}/audio/${fileName}`;
+
+        return res.json({
+            status: "success",
+            platform: "Audio",
+            audio_url: audioUrl,
+            dev: "SABIR7718"
+        });
+
+    } catch (err) {
+        log('error', 'API', err.message);
+        res.status(500).json({
+            status: "error",
+            message: err.message
+        });
+    }
+});
+
+SABIR7718.get('/proxyxhamster', async (req, res) => {
+
+    try {
+
+        const target = req.query.url;
+
+        if (!target) {
+            return res.status(400).send("Missing url");
+        }
+
+        const response = await axios({
+            method: "GET",
+            url: target,
+            responseType: "stream",
+            headers: {
+                "User-Agent": "Mozilla/5.0",
+                "Referer": "https://xhamster.com/"
+            }
+        });
+
+        res.setHeader(
+            "Content-Type",
+            response.headers["content-type"] || "video/mp4"
+        );
+
+        res.setHeader(
+            "Access-Control-Allow-Origin",
+            "*"
+        );
+
+        response.data.pipe(res);
+
+    } catch (err) {
+
+        console.log(err?.message);
+
+        res.status(500).json({
+            status: "error",
+            message: err?.message || "Proxy failed"
+        });
+
+    }
+
+});
+
+SABIR7718.use('/audio', express.static(require('path').join(__dirname, 'public/audio')));
+
+SABIR7718.listen(PORT, () => {
+    log('success', 'SERVER', `START ON PORT ${PORT}`);
+});
