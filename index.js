@@ -454,7 +454,7 @@ async function downloadTemporaryVideo(videoUrl) {
                             log('info', 'VIDEO_CLEANER', `Deleted temp video file: ${fileName}`);
                         }
                     });
-                }, 5 * 60 * 1000); // 5 minutes delete lock
+                }, 5 * 60 * 1000);
 
                 resolve(fileName);
             });
@@ -465,8 +465,6 @@ async function downloadTemporaryVideo(videoUrl) {
         }
     });
 }
-
-
 
 async function instagramRequest(shortcode, retries, delay) {
     var _a;
@@ -640,6 +638,54 @@ async function mp4ToMp3(videoUrl) {
             reject(err);
         }
     });
+}
+
+async function StartLovingPin(pinterestUrl, req) {
+    try {
+        const api = `https://rabbitapi.nett.to/api/pinterest?url=${encodeURIComponent(pinterestUrl)}`;
+        const response = await axios.get(api, {
+            timeout: 30000,
+            headers: {
+                "User-Agent": "Mozilla/5.0"
+            }
+        });
+        const resData = response.data;
+
+        let videoUrl = null;
+
+        if (resData && resData.status === true && resData.url) {
+            videoUrl = resData.url;
+        } else {
+            throw new Error("Primary Pinterest API failed");
+        }
+
+        const fileName = await mp4ToMp3(videoUrl);
+        return {
+            status: "success",
+            platform: "Pinterest Audio",
+            audio_url: `${req.protocol}://${req.get('host')}/audio/${fileName}`
+        };
+
+    } catch (err) {
+        log('error', 'PINTEREST_API_FAIL', err.message);
+
+        try {
+            const fallbackApi = `https://api.siputzx.my.id/api/d/pinterest?url=${encodeURIComponent(pinterestUrl)}`;
+            const fallbackRes = await axios.get(fallbackApi);
+            if (fallbackRes.data && fallbackRes.data.data && fallbackRes.data.data.dl) {
+                const videoUrl = fallbackRes.data.data.dl;
+                const fileName = await mp4ToMp3(videoUrl);
+                return {
+                    status: "success",
+                    platform: "Pinterest Audio (Fallback)",
+                    audio_url: `${req.protocol}://${req.get('host')}/audio/${fileName}`
+                };
+            }
+        } catch (fErr) {
+            log('error', 'PINTEREST_FALLBACK_FAIL', fErr.message);
+        }
+        throw new Error("Failed to fetch Pinterest link from all providers.");
+    }
 }
 
 async function StartLovingXHamster(videoUrl, req) {
@@ -985,7 +1031,6 @@ SABIR7718.get('/sylove', async (req, res) => {
             }
         }
 
-
         // --- XNXX / XVIDEOS ---
         else if (
             targetUrl.includes('xnxx.com') ||
@@ -1057,6 +1102,18 @@ SABIR7718.get('/audiosyhate', async (req, res) => {
             log('info', 'API', `TIKTOK_AUDIO-${targetUrl}`);
             const data = await StartLovingTok(targetUrl);
             videoUrl = data.video_url;
+        }
+
+        // --- PINTEREST ---
+        else if (targetUrl.includes('pin.it') || targetUrl.includes('pinterest.com')) {
+            log('info', 'API', `PINTEREST_AUDIO-${targetUrl}`);
+            try {
+                const pinAudioData = await StartLovingPin(targetUrl, req);
+                return res.json(pinAudioData);
+            } catch (err) {
+                log('error', 'API', `Pinterest processing failed: ${err.message}`);
+                throw new Error(err.message);
+            }
         }
 
         // --- YOUTUBE (API + FALLBACK) ---
