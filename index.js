@@ -97,6 +97,7 @@ async function StartLovingInsta(url_media, LOVE = {
     }
 }
 
+// TEST EDIT OK BY SABIR7718
 
 async function StartLovingFace(videoUrl, cookie, useragent) {
     const parseString = (string) => JSON.parse(`{"text": "${string}"}`).text;
