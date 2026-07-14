@@ -51,7 +51,7 @@ async function StartLovingInsta(url_media, LOVE = {
 
         try {
 
-            const apiUrl = "https://rabbitapi.nett.to/api/insta2?url=" + encodeURIComponent(url_media);
+            const apiUrl = "https://rabbit-proxy-by-s7.onrender.com/api/insta2?url=" + encodeURIComponent(url_media);
 
             const {
                 data
@@ -97,7 +97,6 @@ async function StartLovingInsta(url_media, LOVE = {
     }
 }
 
-// TEST EDIT OK BY SABIR7718
 
 async function StartLovingFace(videoUrl, cookie, useragent) {
     const parseString = (string) => JSON.parse(`{"text": "${string}"}`).text;
