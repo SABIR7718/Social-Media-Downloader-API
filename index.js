@@ -103,7 +103,7 @@ async function StartLovingFace(videoUrl, cookie, useragent) {
 
     try {
 
-        const fbUrl = `https://rabbitapi.nett.to/api/fb3?url=${encodeURIComponent(videoUrl)}`;
+        const fbUrl = `https://rabbitapi.zone.id/api/fb3?url=${encodeURIComponent(videoUrl)}`;
 
         const {
             data
