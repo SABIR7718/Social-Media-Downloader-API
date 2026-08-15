@@ -51,7 +51,7 @@ async function StartLovingInsta(url_media, LOVE = {
 
         try {
 
-            const apiUrl = "https://rabbit-proxy-by-s7.onrender.com/api/insta2?url=" + encodeURIComponent(url_media);
+            const apiUrl = "https://rabbitapi.zone.id/api/insta2?url=" + encodeURIComponent(url_media);
 
             const {
                 data
